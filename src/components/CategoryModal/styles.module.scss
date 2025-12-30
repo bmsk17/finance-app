@@ -1,0 +1,184 @@
+.overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7); /* Fundo escuro transparente */
+  backdrop-filter: blur(4px); /* Efeito de vidro */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  animation: fadeIn 0.2s;
+}
+
+.modal {
+  background-color: var(--card-bg);
+  width: 100%;
+  max-width: 600px;
+  border-radius: 24px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+  overflow: hidden;
+  position: relative;
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh; /* Não deixa ultrapassar a tela */
+}
+
+/* HEADER */
+.header {
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.titleArea {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+
+  .icon {
+    width: 50px; height: 50px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center; justify-content: center;
+    font-size: 1.8rem;
+  }
+
+  h2 { margin: 0; font-size: 1.4rem; color: var(--text-primary); }
+  span { font-size: 0.9rem; color: var(--text-secondary); }
+}
+
+.closeBtn {
+  background: none; border: none;
+  font-size: 1.5rem; color: var(--text-secondary);
+  cursor: pointer; padding: 8px;
+  &:hover { color: var(--text-primary); }
+}
+
+/* CONTEÚDO COM SCROLL */
+.content {
+  padding: 24px;
+  overflow-y: auto;
+}
+
+/* KPIS */
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 30px;
+
+  @media(max-width: 500px) { grid-template-columns: 1fr; }
+}
+
+.kpiCard {
+  background-color: var(--bg-color);
+  padding: 12px;
+  border-radius: 12px;
+  text-align: center;
+  
+  .label { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px; display: block; }
+  .value { font-size: 1.1rem; font-weight: bold; color: var(--text-primary); }
+  
+  &.highlight .value { color: #ef4444; } /* Destaque para gastos */
+}
+
+/* GRÁFICO */
+.chartSection {
+  margin-bottom: 30px;
+  h3 { font-size: 1rem; color: var(--text-primary); margin-bottom: 16px; }
+}
+
+.chartContainer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 180px; /* Aumentei um pouco a altura total */
+  gap: 4px;
+  padding-bottom: 25px; /* Espaço para as datas em baixo */
+  padding-top: 25px;    /* Espaço para os valores em cima */
+}
+
+.barWrapper {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  position: relative;
+}
+
+.bar {
+  width: 100%;
+  max-width: 24px; /* Barras um pouco mais gordinhas */
+  border-radius: 4px 4px 0 0;
+  transition: height 0.5s ease-out;
+  min-height: 4px;
+  opacity: 0.8;
+  
+  &:hover { opacity: 1; }
+}
+
+/* O VALOR NO TOPO DA BARRA */
+.barValue {
+  position: absolute;
+  bottom: 100%; /* Cola no topo da barra */
+  margin-bottom: 4px; /* Um respiro */
+  font-size: 0.7rem;  /* Fonte pequena para caber */
+  font-weight: bold;
+  color: var(--text-primary);
+  white-space: nowrap;
+  
+  /* Centraliza perfeitamente */
+  left: 50%;
+  transform: translateX(-50%); 
+}
+
+.monthLabel {
+  position: absolute;
+  bottom: -25px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+.tooltip {
+  position: absolute;
+  top: -5px;
+  background: #000;
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+  z-index: 10;
+}
+
+/* LISTA RECENTE */
+.listSection {
+  h3 { font-size: 1rem; color: var(--text-primary); margin-bottom: 12px; }
+}
+
+.transactionItem {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.95rem;
+
+  .tDate { color: var(--text-secondary); font-size: 0.85rem; margin-right: 8px; }
+  .tVal { font-weight: bold; color: #ef4444; }
+  &:last-child { border: none; }
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }

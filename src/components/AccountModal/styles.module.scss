@@ -1,0 +1,146 @@
+/* ... Mantenha overlay, modal e header iguais ... */
+.overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.85); backdrop-filter: blur(5px);
+  display: flex; justify-content: center; align-items: center; z-index: 1000;
+  padding: 20px;
+}
+
+.modal {
+  background: var(--card-bg); width: 100%; max-width: 800px; /* Bem largo para ver dados */
+  border-radius: 24px; border: 1px solid var(--border-color);
+  overflow: hidden; display: flex; flex-direction: column;
+  height: 85vh; /* Altura fixa para forçar o scroll interno */
+}
+
+.header {
+  padding: 20px 24px; border-bottom: 1px solid var(--border-color);
+  display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+}
+.closeBtn { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary); }
+
+/* Conteúdo Rolável */
+.scrollContent {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1; /* Ocupa o resto do espaço */
+}
+
+/* KPIS */
+.summaryGrid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 30px;
+}
+.summaryCard {
+  background-color: var(--bg-color); border: 1px solid var(--border-color);
+  padding: 16px; border-radius: 12px; text-align: center;
+  span { font-size: 0.85rem; color: var(--text-secondary); display: block; margin-bottom: 8px; }
+  strong { font-size: 1.1rem; display: block; }
+}
+
+/* GRÁFICO INTERATIVO */
+.chartHeader {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;
+  h3 { font-size: 0.9rem; color: var(--text-secondary); margin: 0; }
+  button {
+    background: none; border: 1px solid var(--border-color); color: var(--text-primary);
+    padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer;
+    &:hover { background: var(--bg-color); }
+  }
+}
+
+.chartContainer {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  height: 200px; gap: 4px; margin-bottom: 30px;
+  padding-bottom: 25px; border-bottom: 1px solid var(--border-color);
+}
+
+.monthGroup {
+  flex: 1; height: 100%; display: flex; align-items: flex-end; justify-content: center; 
+  gap: 4px; position: relative; cursor: pointer;
+  border-radius: 8px;
+  transition: background-color 0.2s;
+
+  /* Efeito Hover no Mês inteiro */
+  &:hover { background-color: rgba(255, 255, 255, 0.05); }
+
+  /* ESTADO SELECIONADO (O Filtro Ativo) */
+  &.selected {
+    background-color: rgba(59, 130, 246, 0.1); /* Fundo Azulado */
+    border-bottom: 3px solid #3b82f6;
+    
+    .monthLabel { color: #3b82f6; font-weight: bold; }
+  }
+}
+
+.bar {
+  width: 8px; border-radius: 4px 4px 0 0; opacity: 0.6; transition: all 0.3s;
+  min-height: 4px; /* Garante que a barra aparece mesmo se valor for baixo */
+}
+
+/* Barras ficam mais vivas quando o mês está selecionado */
+.monthGroup.selected .bar { opacity: 1; }
+
+.incomeBar { background-color: #10b981; }
+.expenseBar { background-color: #ef4444; }
+
+.monthLabel {
+  position: absolute; bottom: -25px; font-size: 0.7rem; 
+  color: var(--text-secondary); text-transform: uppercase;
+}
+
+/* LISTA */
+.listHeader {
+  position: sticky; top: -24px; background: var(--card-bg); /* Gruda no topo ao rolar */
+  padding: 10px 0; margin-bottom: 10px; z-index: 10;
+  border-bottom: 1px solid var(--border-color);
+  display: flex; justify-content: space-between;
+}
+
+.transactionItem {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 0; border-bottom: 1px solid var(--border-color);
+}
+.tInfo { display: flex; align-items: center; gap: 12px; }
+.tIcon { width: 40px; height: 40px; background: var(--bg-color); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+.tDate { font-size: 0.8rem; color: var(--text-secondary); }
+.income { color: #10b981; }
+.expense { color: #ef4444; }
+
+.listHeader {
+  position: sticky; top: -24px; background: var(--card-bg);
+  padding: 10px 0; margin-bottom: 10px; z-index: 10;
+  border-bottom: 1px solid var(--border-color);
+  
+  /* Flexbox para alinhar Título, Select e Saldo */
+  display: flex; flex-direction: column; gap: 8px;
+
+  @media(min-width: 600px) {
+    flex-direction: row; justify-content: space-between; align-items: center;
+  }
+}
+
+.listTitleArea {
+  display: flex; flex-direction: column;
+}
+
+.sortSelect {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  outline: none;
+  
+  &:hover { border-color: #3b82f6; }
+}
+
+.selectWrapper {
+  width: 180px; /* Tamanho fixo menor e mais elegante */
+  z-index: 20;  /* Mantém por cima da lista */
+  
+  @media (max-width: 600px) {
+    width: 100%; /* No celular fica largura total para facilitar o toque */
+  }
+}

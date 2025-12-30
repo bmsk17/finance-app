@@ -1,0 +1,62 @@
+.deleteBtn {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 6px;
+  transition: all 0.2s;
+  font-size: 1.2rem;
+  
+  &:hover {
+    background-color: #2a1215;
+    color: #ef4444;
+  }
+}
+
+.modalOverlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(2px);
+}
+
+.modal {
+  background: #1e293b;
+  padding: 24px;
+  border-radius: 12px;
+  border: 1px solid #334155;
+  width: 90%;
+  max-width: 400px;
+  color: white;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+  text-align: center;
+
+  h3 { margin-top: 0; margin-bottom: 10px; font-size: 1.2rem; }
+  p { color: #94a3b8; margin-bottom: 24px; font-size: 0.9rem; }
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  button {
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    
+    &:hover { opacity: 0.9; }
+  }
+}
+
+.btnAll { background: #ef4444; color: white; } /* Vermelho */
+.btnSingle { background: #334155; color: #e2e8f0; } /* Cinza */
+.btnCancel { background: transparent; color: #64748b; margin-top: 5px; }

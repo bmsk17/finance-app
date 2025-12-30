@@ -1,0 +1,32 @@
+.btnCheck {
+  background: transparent;
+  border: 1px solid #334155;
+  color: #64748b; /* Cinza (Pendente) */
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  font-size: 1rem;
+
+  &:hover {
+    background: #1e293b;
+    border-color: #94a3b8;
+    color: #e2e8f0;
+  }
+
+  &.paid {
+    background: #065f46; /* Fundo Verde Escuro */
+    border-color: #059669;
+    color: #34d399; /* Texto Verde Claro */
+    
+    &:hover {
+      background: #064e3b;
+      color: #ef4444; /* Vira vermelho no hover para indicar "desmarcar" */
+      content: "✖"; /* Truque visual (opcional) */
+    }
+  }
+}

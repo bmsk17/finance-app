@@ -1,0 +1,93 @@
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start; /* Alinhado ao topo com margem, ou center para meio total */
+  padding-top: 60px;
+  height: 100%;
+}
+
+.card {
+  /* AQUI ESTÁ A MÁGICA: Cores dinâmicas */
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  
+  border-radius: 16px;
+  padding: 32px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.title {
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 32px;
+  color: var(--text-primary);
+}
+
+.formGroup {
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  
+  label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+  
+  input, select {
+    padding: 12px 16px;
+    border-radius: 8px;
+    
+    /* Inputs também se adaptam */
+    border: 1px solid var(--border-color);
+    background-color: var(--background); 
+    color: var(--text-primary);
+    
+    font-size: 1rem;
+    outline: none;
+    transition: all 0.2s;
+    
+    &:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2); /* Brilho da cor de destaque */
+    }
+
+    &::placeholder {
+      color: var(--text-secondary);
+      opacity: 0.5;
+    }
+  }
+}
+
+.btnSubmit {
+  width: 100%;
+  padding: 14px;
+  background-color: var(--accent); /* Roxo/Azul do tema */
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-top: 12px;
+  transition: opacity 0.2s;
+  
+  &:hover { opacity: 0.9; }
+}
+
+.cancelLink {
+  display: block;
+  text-align: center;
+  margin-top: 24px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.2s;
+  
+  &:hover { color: var(--text-primary); }
+}

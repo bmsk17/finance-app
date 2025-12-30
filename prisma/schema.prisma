@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 1. Contas (Ex: Nubank, Carteira, Investimento)
+model Account {
+  id           String        @id @default(uuid())
+  name         String
+  type         String        // ex: "corrente", "investimento", "dinheiro"
+  balance      Decimal       @default(0) // Saldo atual
+
+  transactions Transaction[]
+  recurringExpenses RecurringExpense[]
+  
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+// 2. Categorias (Ex: Alimentação, Casa, Transporte)
+model Category {
+  id           String        @id @default(uuid())
+  name         String
+  icon         String?       // Podemos salvar um emoji ou nome de icone aqui
+  color        String?       // Ex: "#FF0000"
+  transactions Transaction[]
+  recurringExpenses RecurringExpense[]
+}
+
+// 3. Transações (Onde tudo acontece)
+model Transaction {
+  id          String   @id @default(uuid())
+  description String
+  amount      Decimal
+  date        DateTime
+  type        String   @default("expense") // 'income' ou 'expense'
+  isPaid           Boolean @default(true)  // true = Realizado, false = Planejado/Opcional
+  installmentId    String?                 // ID único para agrupar as parcelas (ex: uuid da compra)
+  installmentLabel String?                 // Texto bonitinho: "1/10", "2/10"
+
+
+  category    Category? @relation(fields: [categoryId], references: [id])
+  categoryId  String?
+  account     Account   @relation(fields: [accountId], references: [id])
+  accountId   String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RecurringExpense {
+  id          String   @id @default(uuid())
+  description String
+  amount      Decimal
+  type        String   // 'income' ou 'expense'
+  day         Int      // Dia do vencimento (1 a 31)
+  
+  // Relacionamentos
+  category    Category? @relation(fields: [categoryId], references: [id])
+  categoryId  String?
+  
+  account     Account   @relation(fields: [accountId], references: [id])
+  accountId   String
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

@@ -1,0 +1,121 @@
+.sidebar {
+  width: 280px;
+  /* AQUI MUDOU: Usamos var() para pegar a cor do tema atual */
+  background-color: var(--sidebar-bg); 
+  border-right: 1px solid var(--sidebar-border);
+  
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  transition: background-color 0.3s, border-color 0.3s;
+}
+
+.logoHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 32px;
+  color: var(--text-primary); /* Variável */
+  font-weight: 700;
+  font-size: 1.25rem;
+
+  .logoIcon {
+    width: 32px;
+    height: 32px;
+    background: var(--accent); /* Variável */
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+  }
+}
+
+.workspaceCard {
+  background-color: var(--background); /* Variável */
+  border: 1px solid var(--sidebar-border); /* Variável */
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 32px;
+  cursor: pointer;
+  
+  .info .value { color: var(--text-primary); }
+}
+
+.sectionTitle {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  padding-left: 12px;
+}
+
+.link {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: var(--text-secondary); /* Variável */
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.2s;
+
+  &:hover {
+    background-color: var(--hover-bg); /* Variável */
+    color: var(--text-primary);
+  }
+
+  &.active {
+    background-color: rgba(99, 102, 241, 0.1);
+    color: var(--accent);
+    
+    span { color: var(--accent); }
+  }
+}
+
+.badge {
+  margin-left: auto;
+  background-color: var(--accent);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+}
+
+.footer {
+  margin-top: auto;
+  border-top: 1px solid var(--sidebar-border);
+  padding-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Estilo do Botão de Tema */
+.themeToggle {
+  background: var(--background);
+  border: 1px solid var(--sidebar-border);
+  color: var(--text-primary);
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.2s;
+
+  &:hover {
+    background: var(--hover-bg);
+  }
+}
