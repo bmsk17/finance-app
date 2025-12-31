@@ -24,6 +24,7 @@ export default function NewAccountPage() {
             <label>Tipo</label>
             <select name="type">
               <option value="Conta Corrente">Conta Corrente</option>
+              <option value="Cartão de Crédito">Cartão de Crédito</option>
               <option value="Carteira">Carteira / Dinheiro Físico</option>
               <option value="Investimento">Investimento</option>
               <option value="Poupança">Poupança</option>

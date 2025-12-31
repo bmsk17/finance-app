@@ -9,10 +9,18 @@ export async function createAccount(formData: FormData) {
   const name = formData.get("name") as string
   const type = formData.get("type") as string
   const balanceStr = formData.get("balance") as string
-  const balance = parseFloat(balanceStr.replace("R$", "").replace(/\./g, "").replace(",", "."))
+
+  // CORREÇÃO: Remove o R$, troca a vírgula por ponto e converte.
+  // IMPORTANTE: Removi o .replace(/\./g, "") que estava apagando os pontos decimais.
+  const balance = parseFloat(
+    balanceStr
+      .replace("R$", "")
+      .replace(/\s/g, "")
+      .replace(",", ".")
+  );
 
   await prisma.account.create({
-    data: { name, type, balance } // Este 'balance' agora será tratado como SALDO INICIAL
+    data: { name, type, balance }
   })
 
   revalidatePath("/")

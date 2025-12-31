@@ -1,28 +1,30 @@
+'use client' // OBRIGATÓRIO para usar onInput e hooks de estado
+
+import { useEffect, useState } from 'react';
 import { createTransaction } from "@/app/actions/transactions";
-import { prisma } from "@/lib/prisma";
+import { getAccountsAction, getCategoriesAction } from "@/app/actions/transactions"; // Você precisará criar essas ações simples
 import Link from "next/link";
 import styles from "./page.module.scss";
 
-export default async function NewTransactionPage() {
-  // 1. Buscamos as contas cruas
-  const accountsRaw = await prisma.account.findMany();
-  const categories = await prisma.category.findMany();
+export default function NewTransactionPage() {
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // 2. Calculamos o Saldo Real (Igualzinho ao Dashboard)
-  const accounts = await Promise.all(accountsRaw.map(async (acc) => {
-    const agg = await prisma.transaction.aggregate({
-      _sum: { amount: true },
-      where: { 
-        accountId: acc.id, 
-        isPaid: true, 
-        date: { lte: new Date() } // Até hoje
-      }
-    });
-    return { 
-      ...acc, 
-      currentBalance: Number(acc.balance) + (Number(agg._sum.amount) || 0) 
-    };
-  }));
+  // Carregamos os dados via Action pois estamos em um Client Component
+  useEffect(() => {
+    async function loadData() {
+      // Essas funções devem ser exportadas do seu arquivo de actions
+      const accs = await getAccountsAction();
+      const cats = await getCategoriesAction();
+      setAccounts(accs);
+      setCategories(cats);
+      setLoading(false);
+    }
+    loadData();
+  }, []);
+
+  if (loading) return <p style={{textAlign: 'center', padding: '40px'}}>Carregando...</p>;
 
   return (
     <main className={styles.container}>
@@ -37,11 +39,28 @@ export default async function NewTransactionPage() {
             <input type="text" name="description" placeholder="Ex: Mercado, Salário..." required />
           </div>
 
-           <div className={styles.row}>
-            {/* Valor */}
+          <div className={styles.row}>
+            {/* Valor - CORRIGIDO PARA ACEITAR VÍRGULA */}
             <div className={styles.formGroup}>
               <label>Valor da Parcela (R$)</label>
-              <input type="number" name="amount" step="0.01" placeholder="0,00" required />
+              <input 
+                type="text" // Mudamos para text para permitir a vírgula
+                name="amount" 
+                placeholder="0,00" 
+                required 
+                onInput={(e: any) => {
+                  // Substitui vírgula por ponto
+                  let value = e.target.value.replace(',', '.');
+                  // Remove tudo que não for número ou ponto
+                  value = value.replace(/[^0-9.]/g, '');
+                  // Evita múltiplos pontos decimais
+                  const parts = value.split('.');
+                  if (parts.length > 2) {
+                    value = parts[0] + '.' + parts.slice(1).join('');
+                  }
+                  e.target.value = value;
+                }}
+              />
             </div>
 
             {/* Data */}
@@ -56,7 +75,7 @@ export default async function NewTransactionPage() {
             </div>
           </div>
           
-           <div className={styles.row}>
+          <div className={styles.row}>
             {/* Tipo */}
             <div className={styles.formGroup}>
               <label>Tipo</label>
@@ -65,8 +84,9 @@ export default async function NewTransactionPage() {
                 <option value="income">🟢 Receita</option>
               </select>
             </div>
+
             {/* Categoria */}
-             <div className={styles.formGroup}>
+            <div className={styles.formGroup}>
               <label>Categoria</label>
               <select name="categoryId" required defaultValue="">
                 <option value="" disabled>Selecione...</option>
@@ -80,21 +100,18 @@ export default async function NewTransactionPage() {
           </div>
 
           {/* Conta */}
-           <div className={styles.formGroup}>
+          <div className={styles.formGroup}>
             <label>Conta / Carteira</label>
             <select name="accountId" required>
               {accounts.map(acc => (
                 <option key={acc.id} value={acc.id}>
-                  {acc.name} (Saldo Atual: R$ {Number(acc.currentBalance).toFixed(2)})
+                  {acc.name} (Saldo: R$ {Number(acc.currentBalance).toFixed(2)})
                 </option>
               ))}
             </select>
           </div>
 
-          {/* --- BLOCO DE PARCELAMENTO E STATUS (Refatorado para SCSS) --- */}
-          
           <div className={styles.installmentsBlock}>
-            {/* Campo de Parcelas */}
             <div className={styles.formGroup}>
               <label>Repetir (Parcelas)</label>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -110,7 +127,6 @@ export default async function NewTransactionPage() {
               </div>
             </div>
 
-            {/* Checkbox de Status */}
             <div>
                 <div className={styles.checkboxWrapper}>
                 <input 
@@ -119,26 +135,18 @@ export default async function NewTransactionPage() {
                     id="isPaid" 
                     defaultChecked 
                 />
-                <label htmlFor="isPaid">
-                    Já está pago/consolidado?
-                </label>
+                <label htmlFor="isPaid">Já está pago/consolidado?</label>
                 </div>
                 <p className={styles.helperText}>
-                Desmarque se for um gasto planejado (opcional) ou futuro.
+                  Desmarque se for um gasto planejado (opcional) ou futuro.
                 </p>
             </div>
           </div>
 
-          {/* ------------------------- */}
-
-          <button type="submit" className={styles.btnSubmit}>
-            Salvar
-          </button>
+          <button type="submit" className={styles.btnSubmit}>Salvar</button>
         </form>
 
-        <Link href="/" className={styles.backLink}>
-          ← Cancelar e voltar
-        </Link>
+        <Link href="/" className={styles.backLink}>← Cancelar e voltar</Link>
       </div>
     </main>
   );

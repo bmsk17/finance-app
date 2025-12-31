@@ -4,7 +4,9 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
-
+/**
+ * CRIAÇÃO DE TRANSAÇÃO (Única ou Parcelada)
+ */
 export async function createTransaction(formData: FormData) {
   const description = formData.get("description") as string
   const amountStr = formData.get("amount") as string
@@ -17,49 +19,41 @@ export async function createTransaction(formData: FormData) {
 
   if (!description || !amountStr || !accountId || !categoryId || !dateStr) return;
 
-  // Tratamento do valor
-  let baseAmount = parseFloat(amountStr.replace("R$", "").replace(/\./g, "").replace(",", "."))
-  if (type === "expense") baseAmount = Math.abs(baseAmount) * -1
-  else baseAmount = Math.abs(baseAmount)
+  // CORREÇÃO: Tratamento do valor sem apagar o ponto decimal
+  let baseAmount = parseFloat(
+    amountStr
+      .replace("R$", "")
+      .replace(/\s/g, "")
+      .replace(",", ".")
+  );
+  
+  // Garante o sinal correto conforme o tipo
+  baseAmount = Math.abs(baseAmount);
+  if (type === "expense") baseAmount = baseAmount * -1;
 
-  // Grupo de parcelas (ID único para todas)
   const installmentId = installments > 1 ? crypto.randomUUID() : null
   
-  // Data Base (fixa o timezone pegando a parte da data e forçando meio-dia ou tratando string)
-  // Dica: Criar a data com "T12:00:00" evita problemas de fuso horário voltando 1 dia
-  const [year, month, day] = dateStr.split('-').map(Number)
-  // Cria data localmente segura (sem setar hora zero pra não cair no dia anterior com GMT-4)
-  const baseDate = new Date(year, month - 1, day)
+  // Tratamento de data seguro para evitar erros de fuso horário
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const baseDate = new Date(year, month - 1, day);
 
-  const operations = []
+  const operations = [];
 
   for (let i = 0; i < installments; i++) {
-    const date = new Date(baseDate)
-    
-    // --- CORREÇÃO DE DATA (O PULO DO GATO) ---
-    // Adiciona 'i' meses
-    date.setMonth(baseDate.getMonth() + i)
+    const date = new Date(baseDate);
+    date.setMonth(baseDate.getMonth() + i);
 
-    // Se o dia mudou (ex: era 31 e virou 3), significa que o mês não tinha 31 dias.
-    // O JS jogou para o próximo mês. Vamos voltar para o último dia do mês correto.
+    // Ajuste para meses com menos dias (ex: 31 de jan -> 28 de fev)
     if (date.getDate() !== baseDate.getDate()) {
-       date.setDate(0) // "Dia 0" deste mês = Último dia do mês anterior
+       date.setDate(0);
     }
-    // ------------------------------------------
 
     const installmentLabel = installments > 1 ? `${i + 1}/${installments}` : null
-    
-    // Nome: "PS5 (1/10)"
     const finalDescription = installmentLabel 
       ? `${description} (${installmentLabel})` 
       : description
 
-    // Lógica de Status:
-    // Se for parcelado, geralmente só a 1ª pode estar "Paga". As futuras são "Planejadas".
-    // Se quiseres que TODAS fiquem pagas se marcares o check, usa `isPaid`.
-    // Se quiseres só a primeira, usa: `const currentIsPaid = i === 0 ? isPaid : false`
-    // Vou deixar o padrão (status igual para todas ou lógica inteligente):
-    const currentIsPaid = (installments > 1 && i > 0) ? false : isPaid
+    const currentIsPaid = (installments > 1 && i > 0) ? false : isPaid;
 
     operations.push(
       prisma.transaction.create({
@@ -75,16 +69,17 @@ export async function createTransaction(formData: FormData) {
           installmentLabel
         }
       })
-    )
+    );
   }
 
-  await prisma.$transaction(operations)
-
-  revalidatePath("/")
-  redirect("/")
+  await prisma.$transaction(operations);
+  revalidatePath("/");
+  redirect("/");
 }
 
-
+/**
+ * ATUALIZAÇÃO DE TRANSAÇÃO
+ */
 export async function updateTransaction(formData: FormData) {
   const id = formData.get("id") as string
   const description = formData.get("description") as string
@@ -95,84 +90,83 @@ export async function updateTransaction(formData: FormData) {
   const dateStr = formData.get("date") as string
   const isPaid = formData.get("isPaid") === "on"
 
-  if (!id || !amountStr || !accountId || !categoryId) return;
+  if (!id || !amountStr || !accountId || !categoryId || !dateStr) return;
 
-  // 1. Tratamento do valor
-  let baseAmount = parseFloat(amountStr.replace("R$", "").replace(/\./g, "").replace(",", "."))
-  if (type === "expense") baseAmount = Math.abs(baseAmount) * -1
-  else baseAmount = Math.abs(baseAmount)
+  // 1. TRATAMENTO DE VALOR (IGUAL AO CREATE)
+  // Remove R$, espaços e garante que a vírgula vire ponto sem apagar o ponto decimal real
+  let baseAmount = parseFloat(
+    amountStr
+      .replace("R$", "")
+      .replace(/\s/g, "")
+      .replace(",", ".")
+  );
+  
+  // Garante que o valor é absoluto antes de aplicar o sinal do tipo
+  baseAmount = Math.abs(baseAmount);
+  if (type === "expense") baseAmount = baseAmount * -1;
 
-  // 2. Buscar a transação original para ver se é parcelada
+  // 2. BUSCAR TRANSAÇÃO ORIGINAL
   const originalTransaction = await prisma.transaction.findUnique({
     where: { id }
   })
 
   if (!originalTransaction) return;
 
-  // 3. Lógica de Atualização
+  // 3. TRATAMENTO DE DATA SEGURO (O PULO DO GATO)
+  // Evita que a transação "mude de dia" sozinha devido ao fuso horário do navegador
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const updatedDate = new Date(year, month - 1, day);
+
+  // 4. LÓGICA DE ATUALIZAÇÃO
   if (originalTransaction.installmentId) {
     // --- CENÁRIO A: É PARCELADO (Atualiza o grupo) ---
     
-    // Descobrir a "Descrição Base" (sem o sufixo 1/10)
-    // Se o usuário mudou de "TV (1/10)" para "Smart TV (1/10)", queremos pegar "Smart TV"
-    let newBaseDescription = description
+    let newBaseDescription = description;
     if (originalTransaction.installmentLabel) {
-       // Removemos o sufixo antigo (ex: " (1/10)") da string nova para pegar a base limpa
-       // Nota: Isso é uma tentativa de preservar a edição do texto. 
-       // Se o usuário apagou o sufixo manualmente no input, usamos o texto puro.
-       newBaseDescription = description.replace(` (${originalTransaction.installmentLabel})`, "")
+       // Remove o sufixo antigo para reconstruir o nome das parcelas irmãs
+       newBaseDescription = description.replace(` (${originalTransaction.installmentLabel})`, "");
     }
 
-    // Buscamos todas as irmãs
     const siblings = await prisma.transaction.findMany({
       where: { installmentId: originalTransaction.installmentId }
     })
 
-    const operations = []
-
-    for (const sibling of siblings) {
-      // Para a transação ATUAL (a que estamos editando), atualizamos TUDO (Data, Status, etc)
+    const operations = siblings.map(sibling => {
       if (sibling.id === id) {
-        operations.push(
-          prisma.transaction.update({
-            where: { id },
-            data: {
-              description, // Usa a descrição exata do input
-              amount: baseAmount,
-              date: new Date(dateStr),
-              type,
-              accountId,
-              categoryId,
-              isPaid
-            }
-          })
-        )
+        // Para a parcela que você está editando manualmente
+        return prisma.transaction.update({
+          where: { id },
+          data: {
+            description,
+            amount: baseAmount,
+            date: updatedDate,
+            type,
+            accountId,
+            categoryId,
+            isPaid
+          }
+        });
       } else {
-        // Para as IRMÃS, atualizamos só o Valor, Categoria, Conta e Nome (mantendo numeração)
-        // NÃO mexemos na data nem no status (isPaid) delas!
-        
-        const siblingLabel = sibling.installmentLabel || ""
+        // Para as parcelas "irmãs" (só atualiza os dados gerais)
+        const siblingLabel = sibling.installmentLabel || "";
         const siblingNewDescription = siblingLabel 
            ? `${newBaseDescription} (${siblingLabel})` 
-           : newBaseDescription
+           : newBaseDescription;
 
-        operations.push(
-          prisma.transaction.update({
-            where: { id: sibling.id },
-            data: {
-              description: siblingNewDescription,
-              amount: baseAmount,
-              type,
-              accountId,
-              categoryId,
-              // Mantemos date e isPaid originais desta parcela
-            }
-          })
-        )
+        return prisma.transaction.update({
+          where: { id: sibling.id },
+          data: {
+            description: siblingNewDescription,
+            amount: baseAmount,
+            type,
+            accountId,
+            categoryId
+          }
+        });
       }
-    }
+    });
 
-    await prisma.$transaction(operations)
+    await prisma.$transaction(operations);
 
   } else {
     // --- CENÁRIO B: NÃO É PARCELADO (Simples) ---
@@ -181,36 +175,39 @@ export async function updateTransaction(formData: FormData) {
       data: {
         description,
         amount: baseAmount,
-        date: new Date(dateStr),
+        date: updatedDate,
         type,
         accountId,
         categoryId,
         isPaid
       }
-    })
+    });
   }
 
-  revalidatePath("/")
-  redirect("/")
+  revalidatePath("/");
+  redirect("/");
 }
 
+/**
+ * ALTERAR STATUS (PAGO/PENDENTE)
+ */
 export async function toggleTransactionStatus(formData: FormData) {
   const id = formData.get("id") as string
-  const isPaid = formData.get("isPaid") === "true" // Recebe o estado ATUAL
+  const isPaid = formData.get("isPaid") === "true"
 
   if (!id) return;
 
   await prisma.transaction.update({
     where: { id },
-    data: { 
-      isPaid: !isPaid // Inverte o valor (true -> false, false -> true)
-    }
-  })
+    data: { isPaid: !isPaid }
+  });
 
-  revalidatePath("/")
+  revalidatePath("/");
 }
 
-
+/**
+ * EXCLUSÃO
+ */
 export async function deleteTransaction(formData: FormData) {
   const id = formData.get("id") as string
   const deleteMode = formData.get("deleteMode") as string
@@ -218,13 +215,151 @@ export async function deleteTransaction(formData: FormData) {
   const transaction = await prisma.transaction.findUnique({ where: { id } })
   if (!transaction) return;
 
+  // LÓGICA NOVA: Deleção de Transferências em Par (Smart Delete)
+  const isTransferOut = transaction.description.startsWith("Transf. para:");
+  const isTransferIn = transaction.description.startsWith("Receb. de:");
+
+  if (isTransferOut || isTransferIn) {
+    // 1. Tenta achar a transação irmã (gêmea)
+    // A irmã tem o mesmo valor (sinal oposto) e a mesma data
+    // Nota: Como não temos ID de vínculo, usamos heurística de valor e data
+    const twinAmount = Number(transaction.amount) * -1;
+    
+    // Margem de erro pequena para data (caso tenha milissegundos de diferença)
+    const dateStart = new Date(transaction.date); 
+    dateStart.setSeconds(dateStart.getSeconds() - 2);
+    const dateEnd = new Date(transaction.date);
+    dateEnd.setSeconds(dateEnd.getSeconds() + 2);
+
+    const twinTransaction = await prisma.transaction.findFirst({
+      where: {
+        amount: twinAmount, // Valor invertido
+        date: { gte: dateStart, lte: dateEnd }, // Mesma hora (aprox)
+        // Se eu sou saída, procuro entrada com descrição "Receb. de", e vice-versa
+        description: {
+          startsWith: isTransferOut ? "Receb. de:" : "Transf. para:"
+        }
+      }
+    });
+
+    // 2. Se achou a irmã, apaga as duas numa transação atômica
+    if (twinTransaction) {
+      await prisma.$transaction([
+        prisma.transaction.delete({ where: { id: transaction.id } }),
+        prisma.transaction.delete({ where: { id: twinTransaction.id } })
+      ]);
+      revalidatePath("/");
+      return; // Encerra aqui
+    }
+  }
+
+  // --- LÓGICA ANTIGA (Para transações normais) ---
   if (deleteMode === 'all' && transaction.installmentId) {
     await prisma.transaction.deleteMany({
       where: { installmentId: transaction.installmentId }
-    })
+    });
   } else {
-    await prisma.transaction.delete({ where: { id } })
+    await prisma.transaction.delete({ where: { id } });
   }
 
-  revalidatePath("/")
+  revalidatePath("/");
+}
+
+/**
+ * BUSCA DE CONTAS PARA CLIENT COMPONENTS (COM CONVERSÃO DE DECIMAL)
+ */
+export async function getAccountsAction() {
+  const accountsRaw = await prisma.account.findMany();
+  
+  return Promise.all(accountsRaw.map(async (acc) => {
+    const agg = await prisma.transaction.aggregate({
+      _sum: { amount: true },
+      where: { 
+        accountId: acc.id, 
+        isPaid: true, 
+        date: { lte: new Date() } 
+      }
+    });
+
+    return { 
+      id: acc.id,
+      name: acc.name,
+      type: acc.type,
+      balance: Number(acc.balance), 
+      currentBalance: Number(acc.balance) + (Number(agg._sum.amount) || 0) 
+    };
+  }));
+}
+
+/**
+ * BUSCA DE CATEGORIAS PARA CLIENT COMPONENTS
+ */
+export async function getCategoriesAction() {
+  const categories = await prisma.category.findMany({ 
+    orderBy: { name: 'asc' } 
+  });
+
+  return categories.map(cat => ({
+    id: cat.id,
+    name: cat.name,
+    icon: cat.icon,
+    color: cat.color
+  }));
+}
+
+/**
+ * TRANSFERÊNCIA ENTRE CONTAS
+ * Cria duas transações atômicas: uma saída na origem e uma entrada no destino.
+ */
+export async function createTransfer(formData: FormData) {
+  const amountStr = formData.get("amount") as string
+  const description = formData.get("description") as string
+  const dateStr = formData.get("date") as string
+  const fromAccountId = formData.get("fromAccountId") as string
+  const toAccountId = formData.get("toAccountId") as string
+  // Opcional: O usuário pode escolher uma categoria "Transferência" ou "Pagamento"
+  const categoryId = formData.get("categoryId") as string 
+  
+  if (!amountStr || !fromAccountId || !toAccountId || !dateStr) return;
+
+  // 1. Tratamento do valor (sempre positivo aqui, a lógica define o sinal)
+  let baseAmount = parseFloat(
+    amountStr.replace("R$", "").replace(/\s/g, "").replace(",", ".")
+  );
+  baseAmount = Math.abs(baseAmount);
+
+  // 2. Tratamento da Data
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const transactionDate = new Date(year, month - 1, day);
+
+  // 3. Criação Atômica (Ou faz os dois, ou não faz nenhum)
+  await prisma.$transaction([
+    // A: Tira da Origem (Despesa)
+    prisma.transaction.create({
+      data: {
+        description: `Transf. para: ${description || 'Conta Destino'}`,
+        amount: baseAmount * -1, // Negativo
+        type: 'expense',
+        date: transactionDate,
+        accountId: fromAccountId,
+        categoryId: categoryId || null, // Ideal ter uma categoria "Transferência"
+        isPaid: true, // Transferências geralmente são imediatas
+      }
+    }),
+    // B: Coloca no Destino (Receita)
+    prisma.transaction.create({
+      data: {
+        description: `Receb. de: ${description || 'Conta Origem'}`,
+        amount: baseAmount, // Positivo
+        type: 'income',
+        date: transactionDate,
+        accountId: toAccountId,
+        categoryId: categoryId || null,
+        isPaid: true,
+      }
+    })
+  ]);
+
+  revalidatePath("/");
+  redirect("/");
 }

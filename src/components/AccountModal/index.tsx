@@ -14,7 +14,7 @@ export function AccountModal({ account, onClose }: Props) {
   const [data, setData] = useState<any>(null);
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
   
-  // NOVO: Estado para controlar a ordem (Padrão: Data Decrescente)
+  // Estado para controlar a ordem (Padrão: Data Descendente)
   const [sortOrder, setSortOrder] = useState('date-desc');
 
   useEffect(() => {
@@ -33,28 +33,34 @@ export function AccountModal({ account, onClose }: Props) {
   // 2. AGORA ORDENAMOS essa lista filtrada
   const sortedTransactions = [...filteredTransactions].sort((a: any, b: any) => {
     switch (sortOrder) {
-      case 'date-desc': // Mais recentes primeiro
+      case 'date-desc': 
         return new Date(b.date).getTime() - new Date(a.date).getTime();
-      case 'date-asc': // Mais antigas primeiro
+      case 'date-asc': 
         return new Date(a.date).getTime() - new Date(b.date).getTime();
-      case 'amount-desc': // Maior valor primeiro
+      case 'amount-desc': 
         return b.amount - a.amount;
-      case 'amount-asc': // Menor valor primeiro
+      case 'amount-asc': 
         return a.amount - b.amount;
-      case 'alpha-asc': // Alfabética A-Z
+      case 'alpha-asc': 
         return a.description.localeCompare(b.description);
       default:
         return 0;
     }
   });
 
-  // Saldo do Mês (baseado na lista filtrada)
-  const monthTotal = filteredTransactions.reduce((acc: number, t: any) => 
-    t.type === 'income' ? acc + t.amount : acc - t.amount, 0
-  );
+  /**
+   * CORREÇÃO: Saldo do Mês 
+   * Como os valores de despesa já vêm negativos do banco (ex: -100), 
+   * apenas somamos todos os valores. O sinal de menos cuidará da subtração.
+   */
+  const monthTotal = filteredTransactions.reduce((acc: number, t: any) => acc + t.amount, 0);
 
+  /**
+   * AJUSTE DE SEGURANÇA: Cálculo do Valor Máximo para o Gráfico
+   * Usamos Math.abs para garantir que despesas (negativas) não quebrem o cálculo do limite.
+   */
   const maxVal = data 
-    ? Math.max(...data.chart.map((d: any) => Math.max(d.income, d.expense)), 100) 
+    ? Math.max(...data.chart.map((d: any) => Math.max(Math.abs(d.income), Math.abs(d.expense))), 100) 
     : 100;
 
   return (
@@ -67,7 +73,9 @@ export function AccountModal({ account, onClose }: Props) {
             <div style={{fontSize:'2rem'}}>{account.type === 'Carteira' ? '💵' : '🏦'}</div>
             <div>
               <h2 style={{margin:0, fontSize:'1.2rem'}}>{account.name}</h2>
-              <span style={{fontSize:'0.85rem', color:'gray'}}>Saldo Atual: <b style={{color: account.balance >=0?'#10b981':'#ef4444'}}>{formatMoney(account.balance)}</b></span>
+              <span style={{fontSize:'0.85rem', color:'gray'}}>
+                Saldo Atual: <b style={{color: account.balance >= 0 ? '#10b981' : '#ef4444'}}>{formatMoney(account.balance)}</b>
+              </span>
             </div>
           </div>
           <button className={styles.closeBtn} onClick={onClose}>&times;</button>
@@ -77,7 +85,7 @@ export function AccountModal({ account, onClose }: Props) {
         <div className={styles.scrollContent}>
           {data ? (
             <>
-              {/* RESUMO */}
+              {/* RESUMO KPI */}
               <div className={styles.summaryGrid}>
                 <div className={styles.summaryCard}>
                   <span style={{color:'#10b981'}}>Entradas (Ano)</span>
@@ -95,7 +103,7 @@ export function AccountModal({ account, onClose }: Props) {
                 </div>
               </div>
 
-              {/* GRÁFICO */}
+              {/* GRÁFICO MENSAL */}
               <div className={styles.chartHeader}>
                 <h3>Filtro Mensal</h3>
                 {selectedMonth !== null && (
@@ -110,14 +118,15 @@ export function AccountModal({ account, onClose }: Props) {
                     onClick={() => setSelectedMonth(selectedMonth === m.index ? null : m.index)}
                     title={`Ver ${m.label}`}
                   >
-                    <div className={`${styles.bar} ${styles.incomeBar}`} style={{ height: `${(m.income / maxVal) * 100}%` }} />
-                    <div className={`${styles.bar} ${styles.expenseBar}`} style={{ height: `${(m.expense / maxVal) * 100}%` }} />
+                    {/* Alturas calculadas proporcionalmente ao maxVal */}
+                    <div className={`${styles.bar} ${styles.incomeBar}`} style={{ height: `${(Math.abs(m.income) / maxVal) * 100}%` }} />
+                    <div className={`${styles.bar} ${styles.expenseBar}`} style={{ height: `${(Math.abs(m.expense) / maxVal) * 100}%` }} />
                     <span className={styles.monthLabel}>{m.label[0]}</span>
                   </div>
                 ))}
               </div>
 
-              {/* LISTA + ORDENAÇÃO */}
+              {/* LISTA DE TRANSAÇÕES */}
               <div className={styles.listHeader}>
                 <div className={styles.listTitleArea}>
                   <h3 style={{margin:0, fontSize:'1rem'}}>
@@ -126,20 +135,19 @@ export function AccountModal({ account, onClose }: Props) {
                       : "Todas as Transações"}
                   </h3>
                   {selectedMonth !== null && (
-                    <span style={{fontSize:'0.8rem', color: monthTotal>=0 ? '#10b981' : '#ef4444'}}>
+                    <span style={{fontSize:'0.8rem', color: monthTotal >= 0 ? '#10b981' : '#ef4444'}}>
                       Resumo: {formatMoney(monthTotal)}
                     </span>
                   )}
                 </div>
 
-                {/* --- O NOVO SELECT DE ORDENAÇÃO --- */}
                 <div className={styles.selectWrapper}> 
                   <CustomSelect 
                     name="sort" 
                     initialValue={sortOrder}
                     onChange={(val) => setSortOrder(val)}
                     options={[
-                      { value: "date-desc", label: "📅 Recentes" }, // Encurtei o texto
+                      { value: "date-desc", label: "📅 Recentes" },
                       { value: "date-asc", label: "📅 Antigas" },
                       { value: "amount-desc", label: "💰 Maior Valor" },
                       { value: "amount-asc", label: "💰 Menor Valor" },
@@ -155,7 +163,6 @@ export function AccountModal({ account, onClose }: Props) {
                     Nenhuma movimentação encontrada.
                   </p>
                 ) : (
-                  // IMPORTANTE: Aqui usamos sortedTransactions em vez de filteredTransactions
                   sortedTransactions.map((t: any) => (
                     <div key={t.id} className={styles.transactionItem}>
                       <div className={styles.tInfo}>
@@ -180,9 +187,10 @@ export function AccountModal({ account, onClose }: Props) {
                   Configurações da Conta
                 </Link>
               </div>
-
             </>
-          ) : <p style={{textAlign:'center', padding:'40px'}}>Carregando...</p>}
+          ) : (
+            <p style={{textAlign:'center', padding:'40px'}}>Carregando...</p>
+          )}
         </div>
       </div>
     </div>

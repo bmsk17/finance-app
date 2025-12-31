@@ -1,0 +1,5838 @@
+﻿
+
+================
+ARQUIVO: page.tsx
+================
+
+import { prisma } from "@/lib/prisma"
+import { updateAccount } from "@/app/actions/accounts"
+import Link from "next/link"
+import { redirect } from "next/navigation"
+// Importamos o estilo da pÃ¡gina de criaÃ§Ã£o (new) para nÃ£o precisar duplicar CSS
+import styles from "../../new/page.module.scss"
+
+interface Props {
+  params: Promise<{ id: string }>
+}
+
+export default async function EditAccountPage({ params }: Props) {
+  const { id } = await params
+
+  // 1. Busca os dados atuais da conta no banco
+  const account = await prisma.account.findUnique({
+    where: { id }
+  })
+
+  // Se tentar editar uma conta que nÃ£o existe, volta para a lista
+  if (!account) {
+    redirect("/accounts")
+  }
+
+  return (
+    <main className={styles.container}>
+      <div className={styles.card}>
+        <h1 className={styles.title}>Editar Conta</h1>
+
+        <form action={updateAccount}>
+          
+          {/* O PULO DO GATO: Input invisÃ­vel com o ID para a Action saber quem atualizar */}
+          <input type="hidden" name="id" value={account.id} />
+
+          <div className={styles.formGroup}>
+            <label>Nome do Banco ou Carteira</label>
+            <input 
+              type="text" 
+              name="name" 
+              defaultValue={account.name} // Preenche com o valor atual
+              placeholder="Ex: Nubank, Inter, Cofre..." 
+              required 
+            />
+          </div>
+
+          <div className={styles.formGroup}>
+            <label>Tipo</label>
+            <select name="type" defaultValue={account.type}>
+              <option value="Conta Corrente">Conta Corrente</option>
+              <option value="Carteira">Carteira / Dinheiro FÃ­sico</option>
+              <option value="Investimento">Investimento</option>
+              <option value="PoupanÃ§a">PoupanÃ§a</option>
+            </select>
+          </div>
+
+          <div className={styles.formGroup}>
+            <label>Saldo Atual (R$)</label>
+            <input 
+              type="number" 
+              name="balance" 
+              step="0.01" 
+              defaultValue={Number(account.balance)} // Converte Decimal do banco para nÃºmero
+              required 
+            />
+            <p style={{ fontSize: '0.75rem', color: '#ef4444', marginTop: '4px' }}>
+              âš ï¸ Ajuste manual: Use para corrigir erros de saldo.
+            </p>
+          </div>
+
+          <button type="submit" className={styles.btnSubmit}>
+            Salvar AlteraÃ§Ãµes
+          </button>
+        </form>
+
+        <Link href="/accounts" className={styles.cancelLink}>
+          â† Cancelar e Voltar
+        </Link>
+      </div>
+    </main>
+  );
+}
+
+
+================
+ARQUIVO: page.module.scss
+================
+
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start; /* Alinhado ao topo com margem, ou center para meio total */
+  padding-top: 60px;
+  height: 100%;
+}
+
+.card {
+  /* AQUI ESTÃ A MÃGICA: Cores dinÃ¢micas */
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  
+  border-radius: 16px;
+  padding: 32px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.title {
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 32px;
+  color: var(--text-primary);
+}
+
+.formGroup {
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  
+  label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+  
+  input, select {
+    padding: 12px 16px;
+    border-radius: 8px;
+    
+    /* Inputs tambÃ©m se adaptam */
+    border: 1px solid var(--border-color);
+    background-color: var(--background); 
+    color: var(--text-primary);
+    
+    font-size: 1rem;
+    outline: none;
+    transition: all 0.2s;
+    
+    &:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2); /* Brilho da cor de destaque */
+    }
+
+    &::placeholder {
+      color: var(--text-secondary);
+      opacity: 0.5;
+    }
+  }
+}
+
+.btnSubmit {
+  width: 100%;
+  padding: 14px;
+  background-color: var(--accent); /* Roxo/Azul do tema */
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-top: 12px;
+  transition: opacity 0.2s;
+  
+  &:hover { opacity: 0.9; }
+}
+
+.cancelLink {
+  display: block;
+  text-align: center;
+  margin-top: 24px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.2s;
+  
+  &:hover { color: var(--text-primary); }
+}
+
+
+================
+ARQUIVO: page.tsx
+================
+
+import { createAccount } from "@/app/actions/accounts";
+import Link from "next/link";
+import styles from "./page.module.scss";
+
+export default function NewAccountPage() {
+  return (
+    <main className={styles.container}>
+      <div className={styles.card}>
+        <h1 className={styles.title}>Nova Conta / Banco</h1>
+
+        <form action={createAccount}>
+          
+          <div className={styles.formGroup}>
+            <label>Nome do Banco ou Carteira</label>
+            <input 
+              type="text" 
+              name="name" 
+              placeholder="Ex: Nubank, Inter, Cofre..." 
+              required 
+            />
+          </div>
+
+          <div className={styles.formGroup}>
+            <label>Tipo</label>
+            <select name="type">
+              <option value="Conta Corrente">Conta Corrente</option>
+              <option value="CartÃ£o de CrÃ©dito">CartÃ£o de CrÃ©dito</option>
+              <option value="Carteira">Carteira / Dinheiro FÃ­sico</option>
+              <option value="Investimento">Investimento</option>
+              <option value="PoupanÃ§a">PoupanÃ§a</option>
+            </select>
+          </div>
+
+          <div className={styles.formGroup}>
+            <label>Saldo Atual (R$)</label>
+            <input 
+              type="number" 
+              name="balance" 
+              step="0.01" 
+              placeholder="0,00" 
+              required 
+            />
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+              Quanto dinheiro tem lÃ¡ hoje?
+            </p>
+          </div>
+
+          <button type="submit" className={styles.btnSubmit}>
+            Criar Conta
+          </button>
+        </form>
+
+        <Link href="/" className={styles.cancelLink}>
+          â† Cancelar
+        </Link>
+      </div>
+    </main>
+  );
+}
+
+
+================
+ARQUIVO: AccountGrid.tsx
+================
+
+'use client'
+import { useState } from 'react'
+import { deleteAccount } from '@/app/actions/accounts'
+import { AccountModal } from '@/components/AccountModal'
+import Link from 'next/link'
+// Reutilize o CSS que jÃ¡ existe ou crie um novo
+import styles from '../categories/page.module.scss' // O estilo de card das categorias serve perfeitamente aqui!
+
+export function AccountGrid({ accounts }: { accounts: any[] }) {
+  const [selected, setSelected] = useState<any>(null)
+
+  return (
+    <>
+      <div className={styles.grid}>
+        {accounts.map(acc => (
+          <div key={acc.id} className={styles.card} onClick={() => setSelected(acc)} style={{cursor:'pointer'}}>
+            {/* Ãcone baseado no tipo */}
+            <div className={styles.iconWrapper} style={{background: '#3b82f620', color:'#3b82f6'}}>
+               {acc.type === 'Carteira' ? 'ðŸ’µ' : acc.type === 'Investimento' ? 'ðŸ“ˆ' : 'ðŸ¦'}
+            </div>
+            
+            <span className={styles.catName}>{acc.name}</span>
+            <span style={{fontSize:'1.1rem', fontWeight:'bold', color: Number(acc.balance) >= 0 ? 'var(--text-primary)' : '#ef4444'}}>
+              R$ {Number(acc.balance).toFixed(2)}
+            </span>
+
+            <div className={styles.actions} onClick={e => e.stopPropagation()}>
+               <Link href={`/accounts/edit/${acc.id}`}>
+                 <button className={styles.actionBtn}>âœï¸</button>
+               </Link>
+               <form action={deleteAccount}>
+                 <input type="hidden" name="id" value={acc.id} />
+                 <button type="submit" className={`${styles.actionBtn} ${styles.deleteBtn}`}>ðŸ—‘ï¸</button>
+               </form>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {selected && <AccountModal account={selected} onClose={() => setSelected(null)} />}
+    </>
+  )
+}
+
+
+================
+ARQUIVO: page.tsx
+================
+
+import { prisma } from "@/lib/prisma"
+import Link from "next/link"
+import { AccountGrid } from "./AccountGrid"
+import styles from "../categories/page.module.scss" 
+
+export default async function AccountsPage() {
+  const data = await prisma.account.findMany({
+    orderBy: { name: 'asc' },
+    include: {
+      transactions: {
+        select: { amount: true, type: true }
+      }
+    }
+  })
+
+  // CÃLCULO BLINDADO ðŸ›¡ï¸
+  const accounts = data.map(acc => {
+    
+    // 1. Receitas: Garantimos que o nÃºmero Ã© positivo com Math.abs
+    const totalIncome = acc.transactions
+      .filter(t => t.type === 'income')
+      .reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
+
+    // 2. Despesas: Garantimos que o nÃºmero Ã© positivo para poder SUBTRAIR depois
+    const totalExpense = acc.transactions
+      .filter(t => t.type === 'expense')
+      .reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
+
+    // 3. A MatemÃ¡tica final
+    // Saldo Inicial (Banco) + Entradas - SaÃ­das
+    const currentBalance = Number(acc.balance) + totalIncome - totalExpense;
+
+    return {
+      ...acc,
+      balance: currentBalance, 
+      transactions: undefined 
+    }
+  })
+
+  return (
+    <main className={styles.container}>
+      <div className={styles.header}>
+        <h1>Minhas Contas</h1>
+        <Link href="/accounts/new" className={styles.newBtn}>
+          + Nova Conta
+        </Link>
+      </div>
+      
+      <AccountGrid accounts={accounts} />
+    </main>
+  )
+}
+
+
+================
+ARQUIVO: accounts.ts
+================
+
+'use server'
+
+import { prisma } from "@/lib/prisma"
+import { redirect } from "next/navigation"
+import { revalidatePath } from "next/cache"
+
+
+export async function createAccount(formData: FormData) {
+  const name = formData.get("name") as string
+  const type = formData.get("type") as string
+  const balanceStr = formData.get("balance") as string
+
+  // CORREÃ‡ÃƒO: Remove o R$, troca a vÃ­rgula por ponto e converte.
+  // IMPORTANTE: Removi o .replace(/\./g, "") que estava apagando os pontos decimais.
+  const balance = parseFloat(
+    balanceStr
+      .replace("R$", "")
+      .replace(/\s/g, "")
+      .replace(",", ".")
+  );
+
+  await prisma.account.create({
+    data: { name, type, balance }
+  })
+
+  revalidatePath("/")
+  revalidatePath("/accounts")
+  redirect("/")
+}
+
+// --- ATUALIZAÃ‡ÃƒO ---
+export async function updateAccount(formData: FormData) {
+  const id = formData.get("id") as string
+  const name = formData.get("name") as string
+  const type = formData.get("type") as string
+  // Nota: Geralmente nÃ£o editamos saldo diretamente aqui se jÃ¡ houver transaÃ§Ãµes, 
+  // mas para corrigir erros iniciais, vamos permitir.
+  const balance = parseFloat(formData.get("balance") as string)
+
+  if (!id || !name) return
+
+  await prisma.account.update({
+    where: { id },
+    data: { name, type, balance }
+  })
+
+  revalidatePath("/accounts")
+  revalidatePath("/")
+  redirect("/accounts")
+}
+
+// --- DELETAR ---
+export async function deleteAccount(formData: FormData) {
+  const id = formData.get("id") as string
+  if (!id) return
+
+  try {
+    await prisma.account.delete({ where: { id } })
+  } catch (error) {
+    console.log("Erro ao deletar conta (pode ter transaÃ§Ãµes)")
+  }
+
+  revalidatePath("/accounts")
+  revalidatePath("/")
+}
+
+// --- ESTATÃSTICAS PARA O MODAL (O Pulo do Gato) ---
+export async function getAccountStats(accountId: string) {
+  const now = new Date();
+  const year = now.getFullYear();
+
+  // 1. Busca TUDO do ano (sem limite de quantidade)
+  const transactions = await prisma.transaction.findMany({
+    where: {
+      accountId,
+      date: {
+        gte: new Date(year, 0, 1),
+        lte: new Date(year, 11, 31, 23, 59, 59)
+      }
+    },
+    orderBy: { date: 'desc' },
+    include: { category: true }
+  });
+
+  // 2. CÃ¡lculos Gerais (KPIs)
+  const totalIncome = transactions
+    .filter(t => t.type === 'income')
+    .reduce((acc, t) => acc + Number(t.amount), 0);
+
+  const totalExpense = transactions
+    .filter(t => t.type === 'expense')
+    .reduce((acc, t) => acc + Number(t.amount), 0);
+
+  const periodBalance = totalIncome + totalExpense;
+
+  // 3. Dados do GrÃ¡fico (Mensal)
+  const monthlyData = Array.from({ length: 12 }, (_, i) => {
+    const monthTrans = transactions.filter(t => t.date.getMonth() === i);
+    
+    const income = monthTrans
+      .filter(t => t.type === 'income')
+      .reduce((acc, t) => acc + Number(t.amount), 0);
+      
+    const expense = monthTrans
+      .filter(t => t.type === 'expense')
+      .reduce((acc, t) => acc + Number(t.amount), 0);
+
+    const label = new Date(year, i, 1).toLocaleDateString('pt-BR', { month: 'short' });
+    // Vamos mandar o Ã­ndice do mÃªs (0-11) para facilitar o filtro no front
+    return { index: i, label, income, expense };
+  });
+
+  // 4. Lista Completa Formatada
+  const allTransactions = transactions.map(t => ({
+    id: t.id,
+    description: t.description,
+    amount: Number(t.amount),
+    type: t.type,
+    date: t.date,
+    categoryName: t.category?.name || 'Outros',
+    categoryIcon: t.category?.icon || 'ðŸ“„'
+  }));
+
+  return { 
+    kpis: { totalIncome, totalExpense, periodBalance },
+    chart: monthlyData, 
+    transactions: allTransactions // Mandamos TUDO agora
+  };
+}
+
+
+================
+ARQUIVO: categories.ts
+================
+
+'use server'
+
+import { prisma } from "@/lib/prisma"
+import { revalidatePath } from "next/cache"
+import { redirect } from "next/navigation"
+
+export async function createCategory(formData: FormData) {
+  const name = formData.get("name") as string
+  const icon = formData.get("icon") as string
+  const color = formData.get("color") as string
+
+  // ValidaÃ§Ã£o: SÃ³ o nome Ã© obrigatÃ³rio para nÃ£o travar o fluxo.
+  // Se o Ã­cone falhar, usamos um padrÃ£o.
+  if (!name) return;
+
+  await prisma.category.create({
+    data: {
+      name,
+      // Se icon vier vazio, salva uma pasta ðŸ“
+      icon: icon || "ðŸ“", 
+      // Se color vier vazio, salva um cinza padrÃ£o
+      color: color || "#64748b", 
+    },
+  })
+
+  revalidatePath("/categories") 
+  revalidatePath("/")           
+  revalidatePath("/transactions/new")
+  
+  redirect("/categories")
+}
+
+export async function deleteCategory(formData: FormData) {
+  const id = formData.get("id") as string
+
+  if (!id) return;
+
+  try {
+    await prisma.category.delete({
+      where: { id }
+    })
+  } catch (e) {
+    console.log("Erro ao apagar categoria (provavelmente em uso)")
+    // Aqui podÃ­amos retornar uma mensagem de erro para a UI no futuro
+  }
+
+  revalidatePath("/categories")
+  revalidatePath("/")
+  revalidatePath("/transactions/new")
+}
+
+// --- ESTATÃSTICAS PARA O MODAL ---
+export async function getCategoryStats(categoryId: string) {
+  const now = new Date();
+  const year = now.getFullYear();
+  const currentMonth = now.getMonth(); // 0 = Jan, 11 = Dez
+
+  // 1. Define intervalo do Ano Atual (Jan 1 a Dez 31)
+  const startOfYear = new Date(year, 0, 1);
+  const endOfYear = new Date(year, 11, 31, 23, 59, 59);
+  
+  // 2. Intervalo do MÃªs Atual
+  const startOfMonth = new Date(year, currentMonth, 1);
+  const endOfMonth = new Date(year, currentMonth + 1, 0);
+
+  // Busca TUDO do ano para evitar mÃºltiplas queries
+  const transactions = await prisma.transaction.findMany({
+    where: {
+      categoryId,
+      date: { gte: startOfYear, lte: endOfYear },
+      type: 'expense', // Focamos em gastos (despesas)
+    },
+    orderBy: { date: 'desc' }
+  });
+
+  // --- CÃLCULOS KPI ---
+  
+  // Total do Ano
+  const yearTotal = transactions.reduce((acc, t) => acc + Number(t.amount), 0);
+  
+  // Total do MÃªs Atual
+  const monthTotal = transactions
+    .filter(t => t.date >= startOfMonth && t.date <= endOfMonth)
+    .reduce((acc, t) => acc + Number(t.amount), 0);
+
+  // MÃ©dia Mensal (Total do Ano / Quantos meses jÃ¡ se passaram atÃ© agora)
+  // Se estamos em MarÃ§o (mÃªs 2), dividimos por 3 (Jan, Fev, Mar)
+  const monthsPassed = currentMonth + 1;
+  const average = yearTotal / (monthsPassed || 1);
+
+  // --- DADOS DO GRÃFICO (Jan a Dez) ---
+  const monthlyData = Array.from({ length: 12 }, (_, i) => {
+    // Filtra transaÃ§Ãµes do mÃªs 'i'
+    const total = transactions
+      .filter(t => t.date.getMonth() === i)
+      .reduce((acc, t) => acc + Number(t.amount), 0);
+    
+    // Nome do mÃªs curto
+    const label = new Date(year, i, 1).toLocaleDateString('pt-BR', { month: 'short' });
+    
+    return { label, total };
+  });
+
+  // --- ÃšLTIMAS 5 TRANSAÃ‡Ã•ES ---
+  const recentTransactions = transactions.slice(0, 5).map(t => ({
+    id: t.id,
+    description: t.description,
+    amount: Number(t.amount),
+    date: t.date,
+  }));
+
+  return {
+    kpis: {
+      monthTotal,
+      yearTotal,
+      average
+    },
+    chart: monthlyData,
+    recent: recentTransactions
+  };
+}
+
+
+export async function updateCategory(formData: FormData) {
+  const id = formData.get("id") as string
+  const name = formData.get("name") as string
+  const icon = formData.get("icon") as string
+  const color = formData.get("color") as string
+
+  if (!id || !name) return;
+
+  await prisma.category.update({
+    where: { id },
+    data: {
+      name,
+      icon: icon || "ðŸ“", 
+      color: color || "#64748b", 
+    },
+  })
+
+  revalidatePath("/categories") 
+  revalidatePath("/")           
+  redirect("/categories")
+}
+
+
+================
+ARQUIVO: recurring.ts
+================
+
+'use server'
+
+import { prisma } from "@/lib/prisma"
+import { revalidatePath } from "next/cache"
+import { redirect } from "next/navigation"
+
+// --- CRUD BÃSICO ---
+
+export async function createRecurringExpense(formData: FormData) {
+  const description = formData.get("description") as string
+  const amountStr = formData.get("amount") as string
+  const type = formData.get("type") as string
+  const day = parseInt(formData.get("day") as string)
+  const categoryId = formData.get("categoryId") as string
+  const accountId = formData.get("accountId") as string
+
+  if (!description || !amountStr || !day || !accountId) return;
+
+  let baseAmount = parseFloat(amountStr.replace("R$", "").replace(/\./g, "").replace(",", "."))
+  // Apenas garantimos que o valor Ã© absoluto aqui, o sinal quem decide Ã© o 'type' na hora de exibir
+  baseAmount = Math.abs(baseAmount)
+
+  await prisma.recurringExpense.create({
+    data: { description, amount: baseAmount, type, day, categoryId: categoryId || null, accountId }
+  })
+
+  revalidatePath("/recurring")
+  revalidatePath("/")
+}
+
+export async function deleteRecurringExpense(formData: FormData) {
+  const id = formData.get("id") as string
+  if (!id) return;
+  await prisma.recurringExpense.delete({ where: { id } })
+  revalidatePath("/recurring")
+  revalidatePath("/")
+}
+
+// --- AUTOMATIZAÃ‡ÃƒO (O CÃ‰REBRO) ---
+
+// 1. Verifica pendÃªncias
+export async function checkPendingRecurring(month: number, year: number) {
+  // Pega todas as fixas
+  const allRecurring = await prisma.recurringExpense.findMany({
+    include: { category: true, account: true }
+  });
+
+  if (allRecurring.length === 0) return [];
+
+  // Intervalo do mÃªs atual
+  const startDate = new Date(year, month, 1);
+  const endDate = new Date(year, month + 1, 0);
+
+  // Pega transaÃ§Ãµes jÃ¡ lanÃ§adas neste mÃªs
+  const existingTransactions = await prisma.transaction.findMany({
+    where: {
+      date: { gte: startDate, lte: endDate }
+    }
+    
+  });
+
+  // Filtra: Retorna as Recorrentes que NÃƒO foram achadas nas TransaÃ§Ãµes
+  // CritÃ©rio: Mesma descriÃ§Ã£o e mesmo valor (com margem pequena de erro para float)
+  return allRecurring.filter(rec => {
+    const isAlreadyLaunched = existingTransactions.some(t => {
+      // Compara descriÃ§Ã£o (ignorando maiÃºsculas/minÃºsculas)
+      const sameName = t.description.toLowerCase() === rec.description.toLowerCase();
+      // Compara valor (converte Decimal para Number)
+      const sameAmount = Math.abs(Number(t.amount)) === Math.abs(Number(rec.amount));
+      return sameName && sameAmount;
+    });
+    return !isAlreadyLaunched;
+  });
+}
+
+// 2. LanÃ§a as pendÃªncias
+export async function generateRecurringTransactions(formData: FormData) {
+  const recurringIdsStr = formData.get("ids") as string;
+  const month = parseInt(formData.get("month") as string);
+  const year = parseInt(formData.get("year") as string);
+  
+  if (!recurringIdsStr) return;
+
+  const ids = JSON.parse(recurringIdsStr) as string[];
+
+  const recurringItems = await prisma.recurringExpense.findMany({
+    where: { id: { in: ids } }
+  });
+
+  const operations = recurringItems.map(item => {
+    // LÃ³gica de Data Segura (evita 30 de Fev)
+    let targetDate = new Date(year, month, item.day);
+    if (targetDate.getMonth() !== month) {
+       targetDate.setDate(0); // Volta para Ãºltimo dia do mÃªs anterior (correto)
+    }
+
+    // Prepara valor (negativo se for despesa)
+    let finalAmount = Number(item.amount);
+    if (item.type === 'expense') finalAmount = Math.abs(finalAmount) * -1;
+    else finalAmount = Math.abs(finalAmount);
+
+    return prisma.transaction.create({
+      data: {
+        description: item.description,
+        amount: finalAmount,
+        type: item.type,
+        date: targetDate,
+        categoryId: item.categoryId!,
+        accountId: item.accountId,
+        isPaid: false, // Entra como PLANEJADO (reloginho)
+      }
+    });
+  });
+
+  await prisma.$transaction(operations);
+  revalidatePath("/");
+  
+}
+
+export async function updateRecurringExpense(formData: FormData) {
+  const id = formData.get("id") as string
+  const description = formData.get("description") as string
+  const amountStr = formData.get("amount") as string
+  const type = formData.get("type") as string
+  const day = parseInt(formData.get("day") as string)
+  const categoryId = formData.get("categoryId") as string
+  const accountId = formData.get("accountId") as string
+
+  if (!id || !description || !amountStr || !day || !accountId) return;
+
+  // Limpeza do valor (igual ao create)
+  let baseAmount = parseFloat(amountStr.replace("R$", "").replace(/\./g, "").replace(",", "."))
+  baseAmount = Math.abs(baseAmount)
+
+  await prisma.recurringExpense.update({
+    where: { id },
+    data: { 
+      description, 
+      amount: baseAmount, 
+      type, 
+      day, 
+      categoryId: categoryId || null, 
+      accountId 
+    }
+  })
+
+  revalidatePath("/recurring")
+  revalidatePath("/")
+  redirect("/recurring") // Redireciona de volta para a lista apÃ³s salvar
+}
+
+
+================
+ARQUIVO: transactions.ts
+================
+
+'use server'
+
+import { prisma } from "@/lib/prisma"
+import { revalidatePath } from "next/cache"
+import { redirect } from "next/navigation"
+
+/**
+ * CRIAÃ‡ÃƒO DE TRANSAÃ‡ÃƒO (Ãšnica ou Parcelada)
+ */
+export async function createTransaction(formData: FormData) {
+  const description = formData.get("description") as string
+  const amountStr = formData.get("amount") as string
+  const type = formData.get("type") as string
+  const accountId = formData.get("accountId") as string
+  const categoryId = formData.get("categoryId") as string
+  const dateStr = formData.get("date") as string
+  const installments = parseInt(formData.get("installments") as string) || 1
+  const isPaid = formData.get("isPaid") === "on"
+
+  if (!description || !amountStr || !accountId || !categoryId || !dateStr) return;
+
+  // CORREÃ‡ÃƒO: Tratamento do valor sem apagar o ponto decimal
+  let baseAmount = parseFloat(
+    amountStr
+      .replace("R$", "")
+      .replace(/\s/g, "")
+      .replace(",", ".")
+  );
+  
+  // Garante o sinal correto conforme o tipo
+  baseAmount = Math.abs(baseAmount);
+  if (type === "expense") baseAmount = baseAmount * -1;
+
+  const installmentId = installments > 1 ? crypto.randomUUID() : null
+  
+  // Tratamento de data seguro para evitar erros de fuso horÃ¡rio
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const baseDate = new Date(year, month - 1, day);
+
+  const operations = [];
+
+  for (let i = 0; i < installments; i++) {
+    const date = new Date(baseDate);
+    date.setMonth(baseDate.getMonth() + i);
+
+    // Ajuste para meses com menos dias (ex: 31 de jan -> 28 de fev)
+    if (date.getDate() !== baseDate.getDate()) {
+       date.setDate(0);
+    }
+
+    const installmentLabel = installments > 1 ? `${i + 1}/${installments}` : null
+    const finalDescription = installmentLabel 
+      ? `${description} (${installmentLabel})` 
+      : description
+
+    const currentIsPaid = (installments > 1 && i > 0) ? false : isPaid;
+
+    operations.push(
+      prisma.transaction.create({
+        data: {
+          description: finalDescription,
+          amount: baseAmount,
+          date: date,
+          type,
+          accountId,
+          categoryId,
+          isPaid: currentIsPaid,
+          installmentId,
+          installmentLabel
+        }
+      })
+    );
+  }
+
+  await prisma.$transaction(operations);
+  revalidatePath("/");
+  redirect("/");
+}
+
+/**
+ * ATUALIZAÃ‡ÃƒO DE TRANSAÃ‡ÃƒO
+ */
+export async function updateTransaction(formData: FormData) {
+  const id = formData.get("id") as string
+  const description = formData.get("description") as string
+  const amountStr = formData.get("amount") as string
+  const type = formData.get("type") as string
+  const accountId = formData.get("accountId") as string
+  const categoryId = formData.get("categoryId") as string
+  const dateStr = formData.get("date") as string
+  const isPaid = formData.get("isPaid") === "on"
+
+  if (!id || !amountStr || !accountId || !categoryId || !dateStr) return;
+
+  // 1. TRATAMENTO DE VALOR (IGUAL AO CREATE)
+  // Remove R$, espaÃ§os e garante que a vÃ­rgula vire ponto sem apagar o ponto decimal real
+  let baseAmount = parseFloat(
+    amountStr
+      .replace("R$", "")
+      .replace(/\s/g, "")
+      .replace(",", ".")
+  );
+  
+  // Garante que o valor Ã© absoluto antes de aplicar o sinal do tipo
+  baseAmount = Math.abs(baseAmount);
+  if (type === "expense") baseAmount = baseAmount * -1;
+
+  // 2. BUSCAR TRANSAÃ‡ÃƒO ORIGINAL
+  const originalTransaction = await prisma.transaction.findUnique({
+    where: { id }
+  })
+
+  if (!originalTransaction) return;
+
+  // 3. TRATAMENTO DE DATA SEGURO (O PULO DO GATO)
+  // Evita que a transaÃ§Ã£o "mude de dia" sozinha devido ao fuso horÃ¡rio do navegador
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const updatedDate = new Date(year, month - 1, day);
+
+  // 4. LÃ“GICA DE ATUALIZAÃ‡ÃƒO
+  if (originalTransaction.installmentId) {
+    // --- CENÃRIO A: Ã‰ PARCELADO (Atualiza o grupo) ---
+    
+    let newBaseDescription = description;
+    if (originalTransaction.installmentLabel) {
+       // Remove o sufixo antigo para reconstruir o nome das parcelas irmÃ£s
+       newBaseDescription = description.replace(` (${originalTransaction.installmentLabel})`, "");
+    }
+
+    const siblings = await prisma.transaction.findMany({
+      where: { installmentId: originalTransaction.installmentId }
+    })
+
+    const operations = siblings.map(sibling => {
+      if (sibling.id === id) {
+        // Para a parcela que vocÃª estÃ¡ editando manualmente
+        return prisma.transaction.update({
+          where: { id },
+          data: {
+            description,
+            amount: baseAmount,
+            date: updatedDate,
+            type,
+            accountId,
+            categoryId,
+            isPaid
+          }
+        });
+      } else {
+        // Para as parcelas "irmÃ£s" (sÃ³ atualiza os dados gerais)
+        const siblingLabel = sibling.installmentLabel || "";
+        const siblingNewDescription = siblingLabel 
+           ? `${newBaseDescription} (${siblingLabel})` 
+           : newBaseDescription;
+
+        return prisma.transaction.update({
+          where: { id: sibling.id },
+          data: {
+            description: siblingNewDescription,
+            amount: baseAmount,
+            type,
+            accountId,
+            categoryId
+          }
+        });
+      }
+    });
+
+    await prisma.$transaction(operations);
+
+  } else {
+    // --- CENÃRIO B: NÃƒO Ã‰ PARCELADO (Simples) ---
+    await prisma.transaction.update({
+      where: { id },
+      data: {
+        description,
+        amount: baseAmount,
+        date: updatedDate,
+        type,
+        accountId,
+        categoryId,
+        isPaid
+      }
+    });
+  }
+
+  revalidatePath("/");
+  redirect("/");
+}
+
+/**
+ * ALTERAR STATUS (PAGO/PENDENTE)
+ */
+export async function toggleTransactionStatus(formData: FormData) {
+  const id = formData.get("id") as string
+  const isPaid = formData.get("isPaid") === "true"
+
+  if (!id) return;
+
+  await prisma.transaction.update({
+    where: { id },
+    data: { isPaid: !isPaid }
+  });
+
+  revalidatePath("/");
+}
+
+/**
+ * EXCLUSÃƒO
+ */
+export async function deleteTransaction(formData: FormData) {
+  const id = formData.get("id") as string
+  const deleteMode = formData.get("deleteMode") as string
+
+  const transaction = await prisma.transaction.findUnique({ where: { id } })
+  if (!transaction) return;
+
+  if (deleteMode === 'all' && transaction.installmentId) {
+    await prisma.transaction.deleteMany({
+      where: { installmentId: transaction.installmentId }
+    });
+  } else {
+    await prisma.transaction.delete({ where: { id } });
+  }
+
+  revalidatePath("/");
+}
+
+/**
+ * BUSCA DE CONTAS PARA CLIENT COMPONENTS (COM CONVERSÃƒO DE DECIMAL)
+ */
+export async function getAccountsAction() {
+  const accountsRaw = await prisma.account.findMany();
+  
+  return Promise.all(accountsRaw.map(async (acc) => {
+    const agg = await prisma.transaction.aggregate({
+      _sum: { amount: true },
+      where: { 
+        accountId: acc.id, 
+        isPaid: true, 
+        date: { lte: new Date() } 
+      }
+    });
+
+    return { 
+      id: acc.id,
+      name: acc.name,
+      type: acc.type,
+      balance: Number(acc.balance), 
+      currentBalance: Number(acc.balance) + (Number(agg._sum.amount) || 0) 
+    };
+  }));
+}
+
+/**
+ * BUSCA DE CATEGORIAS PARA CLIENT COMPONENTS
+ */
+export async function getCategoriesAction() {
+  const categories = await prisma.category.findMany({ 
+    orderBy: { name: 'asc' } 
+  });
+
+  return categories.map(cat => ({
+    id: cat.id,
+    name: cat.name,
+    icon: cat.icon,
+    color: cat.color
+  }));
+}
+
+
+================
+ARQUIVO: page.tsx
+================
+
+import { prisma } from "@/lib/prisma"
+import { updateCategory } from "@/app/actions/categories"
+import Link from "next/link"
+import { redirect } from "next/navigation"
+// Reutilizamos o estilo da pÃ¡gina de criaÃ§Ã£o para manter o padrÃ£o
+import styles from "../../new/page.module.scss" 
+import { ColorPicker } from "@/components/ColorPicker"
+import { IconPicker } from "@/components/IconPicker"
+
+interface Props {
+  params: Promise<{ id: string }>
+}
+
+export default async function EditCategoryPage({ params }: Props) {
+  const { id } = await params
+
+  // 1. Busca os dados atuais da categoria
+  const category = await prisma.category.findUnique({
+    where: { id }
+  })
+
+  if (!category) {
+    redirect("/categories")
+  }
+
+  return (
+    <main className={styles.container}>
+      <h1 className={styles.title}>Editar Categoria</h1>
+      
+      <form action={updateCategory} className={styles.form}>
+        
+        {/* ID Escondido (Fundamental para o update saber quem atualizar) */}
+        <input type="hidden" name="id" value={category.id} />
+
+        {/* Nome */}
+        <div className={styles.formGroup}>
+          <label>Nome</label>
+          <input 
+            type="text" 
+            name="name" 
+            defaultValue={category.name}
+            placeholder="Ex: Jogos, Investimento..." 
+            required 
+          />
+        </div>
+
+        {/* Componentes Visuais com Valores Iniciais */}
+        <IconPicker 
+          name="icon" 
+          label="Ãcone" 
+          initialValue={category.icon || "ðŸ“"}
+        />
+
+        <ColorPicker 
+          name="color" 
+          label="Cor da Categoria" 
+          initialValue={category.color || "#3b82f6"}
+        />
+
+        <button type="submit" className={styles.btnSubmit}>
+          Salvar AlteraÃ§Ãµes
+        </button>
+
+      </form>
+
+      <Link href="/categories" className={styles.cancelLink}>
+        â† Cancelar
+      </Link>
+    </main>
+  )
+}
+
+
+================
+ARQUIVO: page.module.scss
+================
+
+.container {
+  max-width: 500px;
+  margin: 40px auto;
+  padding: 30px;
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.title {
+  color: var(--text-primary);
+  margin-bottom: 24px;
+  text-align: center;
+  font-size: 1.5rem;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  label {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+  }
+
+  input[type="text"] {
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-color);
+    color: var(--text-primary);
+    font-size: 1rem;
+    
+    &:focus {
+      outline: 2px solid #3b82f6;
+      border-color: transparent;
+    }
+  }
+}
+
+.btnSubmit {
+  margin-top: 10px;
+  padding: 14px;
+  border-radius: 8px;
+  border: none;
+  background: #3b82f6;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: opacity 0.2s;
+
+  &:hover { opacity: 0.9; }
+}
+
+.cancelLink {
+  display: block;
+  margin-top: 20px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  text-align: center;
+  font-size: 0.9rem;
+  
+  &:hover { color: var(--text-primary); text-decoration: underline; }
+}
+
+
+================
+ARQUIVO: page.tsx
+================
+
+import { createCategory } from "@/app/actions/categories"
+import Link from "next/link"
+import styles from "./page.module.scss"
+import { ColorPicker } from "@/components/ColorPicker"
+import { IconPicker } from "@/components/IconPicker"
+
+export default function NewCategoryPage() {
+  return (
+    <main className={styles.container}>
+      <h1 className={styles.title}>Criar Categoria</h1>
+      
+      <form action={createCategory} className={styles.form}>
+        
+        {/* Nome (Input PadrÃ£o) */}
+        <div className={styles.formGroup}>
+          <label>Nome</label>
+          <input 
+            type="text" 
+            name="name" 
+            placeholder="Ex: Jogos, Investimento..." 
+            required 
+            autoFocus
+          />
+        </div>
+
+        {/* Componentes Visuais (Substituem os inputs feios) */}
+        <IconPicker 
+          name="icon" 
+          label="Ãcone" 
+        />
+
+        <ColorPicker 
+          name="color" 
+          label="Cor da Categoria" 
+        />
+
+        <button type="submit" className={styles.btnSubmit}>
+          Salvar Categoria
+        </button>
+
+      </form>
+
+      <Link href="/categories" className={styles.cancelLink}>
+        â† Cancelar
+      </Link>
+    </main>
+  )
+}
+
+
+================
+ARQUIVO: CategoryGrid.tsx
+================
+
+'use client'
+
+import { useState } from 'react'
+import { CategoryModal } from '@/components/CategoryModal' // O modal que acabamos de criar
+import { deleteCategory } from '@/app/actions/categories'
+import Link from 'next/link'
+import styles from './page.module.scss' // Reaproveitamos o mesmo CSS
+
+interface Category {
+  id: string
+  name: string
+  icon: string | null;
+  color: string | null;
+}
+
+interface Props {
+  categories: Category[]
+}
+
+export function CategoryGrid({ categories }: Props) {
+  // Estado para controlar qual categoria estÃ¡ aberta no Modal
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null)
+
+  return (
+    <>
+      <div className={styles.grid}>
+        {categories.map((cat) => (
+          <div 
+            key={cat.id} 
+            className={styles.card}
+            // Ao clicar no card, abre o modal
+            onClick={() => setSelectedCategory(cat)}
+            style={{ cursor: 'pointer' }}
+          >
+            
+            <div 
+              className={styles.iconWrapper}
+              style={{ 
+                backgroundColor: cat.color ? `${cat.color}20` : '#3b82f620', 
+                color: cat.color || '#3b82f6'
+              }}
+            >
+              {cat.icon}
+            </div>
+
+            <span className={styles.catName}>{cat.name}</span>
+
+            <div className={styles.actions} onClick={(e) => e.stopPropagation()}>
+              {/* e.stopPropagation impede que clicar nos botÃµes abra o modal */}
+              
+              <Link href={`/categories/edit/${cat.id}`}>
+                <button className={styles.actionBtn} title="Editar">âœï¸</button>
+              </Link>
+
+              <form action={deleteCategory}>
+                <input type="hidden" name="id" value={cat.id} />
+                <button 
+                  type="submit" 
+                  className={`${styles.actionBtn} ${styles.deleteBtn}`} 
+                  title="Excluir"
+                >
+                  ðŸ—‘ï¸
+                </button>
+              </form>
+            </div>
+
+          </div>
+        ))}
+
+        {categories.length === 0 && (
+          <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#64748b', padding: '40px' }}>
+            Nenhuma categoria encontrada. <br/>
+            Crie a primeira para organizar suas finanÃ§as!
+          </div>
+        )}
+      </div>
+
+      {/* RENDERIZA O MODAL SE TIVER ALGO SELECIONADO */}
+      {selectedCategory && (
+        <CategoryModal 
+          category={{
+            ...selectedCategory,
+            // Fallback de seguranÃ§a: se for null, usa o padrÃ£o
+            icon: selectedCategory.icon || "ðŸ“", 
+            color: selectedCategory.color || "#3b82f6"
+          }} 
+          onClose={() => setSelectedCategory(null)} 
+        />
+      )}
+    </>
+  )
+}
+
+
+================
+ARQUIVO: page.module.scss
+================
+
+.container {
+  /* Vamos usar 100% da largura disponÃ­vel menos um padding */
+  width: 95%; 
+  max-width: 1400px; /* Aumente bem este limite */
+  margin: 0 auto;
+  padding: 20px;
+  padding-bottom: 80px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+
+  h1 {
+    font-size: 1.8rem;
+    color: var(--text-primary);
+  }
+}
+
+.newBtn {
+  background-color: #3b82f6;
+  color: white;
+  text-decoration: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: bold;
+  transition: opacity 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  &:hover { opacity: 0.9; }
+}
+
+/* GRADE DE CARTÃ•ES */
+.grid {
+  display: grid;
+  
+  /* MUDANÃ‡A AGRESSIVA: */
+  /* Em vez de "auto-fill", vamos OBRIGAR a ter 4 colunas */
+  grid-template-columns: repeat(4, 1fr); 
+  
+  gap: 15px;
+
+  /* Para nÃ£o quebrar no celular, voltamos a 1 coluna telas pequenas */
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  transition: transform 0.2s, box-shadow 0.2s;
+  position: relative;
+  overflow: hidden;
+
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+  }
+}
+
+/* A bolinha colorida no fundo do Ã­cone */
+.iconWrapper {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  margin-bottom: 12px;
+  /* A cor de fundo serÃ¡ definida inline no React usando a cor da categoria */
+}
+
+.catName {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  margin-top: auto; /* Empurra os botÃµes para o fundo do card */
+}
+
+.actionBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 8px;
+  border-radius: 8px;
+  transition: background 0.2s;
+  color: var(--text-secondary);
+
+  &:hover {
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+  }
+}
+
+.deleteBtn:hover {
+  color: #ef4444; /* Vermelho ao passar o mouse */
+}
+
+
+================
+ARQUIVO: page.tsx
+================
+
+import { prisma } from "@/lib/prisma"
+import Link from "next/link"
+import styles from "./page.module.scss"
+import { CategoryGrid } from "./CategoryGrid"
+
+export default async function CategoriesPage() {
+  // 1. Busca os dados no servidor (Server Side)
+  const categories = await prisma.category.findMany({
+    orderBy: { name: 'asc' }
+  })
+
+  return (
+    <main className={styles.container}>
+      
+      <div className={styles.header}>
+        <h1>Minhas Categorias</h1>
+        <Link href="/categories/new" className={styles.newBtn}>
+          + Nova Categoria
+        </Link>
+      </div>
+
+      {/* 2. Passa os dados para o componente interativo (Client Side) */}
+      <CategoryGrid categories={categories} />
+
+    </main>
+  )
+}
+
+
+================
+ARQUIVO: page.module.scss
+================
+
+/* Podes copiar e colar todo o conteÃºdo de src/app/recurring/page.module.scss aqui */
+/* Mas, para facilitar, aqui estÃ¡ o essencial: */
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.header {
+  margin-bottom: 30px;
+  h1 { font-size: 1.8rem; color: var(--text-primary); margin-bottom: 8px; }
+}
+
+.card {
+  background-color: var(--card-bg);
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid var(--border-color);
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+  @media (max-width: 600px) { grid-template-columns: 1fr; }
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  label { font-size: 0.85rem; color: var(--text-secondary); font-weight: 500; }
+  
+  input {
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    font-size: 1rem;
+  }
+}
+
+.saveBtn {
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 20px;
+  &:hover { opacity: 0.9; }
+}
+
+.cancelBtn {
+  display: block;
+  text-align: center;
+  margin-top: 16px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.9rem;
+  &:hover { text-decoration: underline; }
+}
+
+
+================
+ARQUIVO: page.tsx
+================
+
+import { prisma } from "@/lib/prisma"
+import { updateRecurringExpense } from "@/app/actions/recurring"
+import { CustomSelect } from "@/components/CustomSelect"
+import styles from "./page.module.scss"
+import Link from "next/link"
+import { redirect } from "next/navigation"
+
+interface Props {
+  params: Promise<{ id: string }>
+}
+
+export default async function EditRecurringPage({ params }: Props) {
+  const { id } = await params
+  
+  // 1. Buscar a recorrÃªncia existente
+  const expense = await prisma.recurringExpense.findUnique({
+    where: { id },
+    include: { category: true, account: true }
+  })
+
+  if (!expense) {
+    redirect("/recurring")
+  }
+
+  // 2. Buscar listas para os selects
+  const categories = await prisma.category.findMany()
+  const accounts = await prisma.account.findMany()
+
+  return (
+    <main className={styles.container}>
+      <div className={styles.header}>
+        <h1>Editar RecorrÃªncia</h1>
+      </div>
+
+      <div className={styles.card}>
+        <form action={updateRecurringExpense}>
+          <input type="hidden" name="id" value={expense.id} />
+
+          <div className={styles.formGrid}>
+            <div className={styles.inputGroup}>
+              <label>DescriÃ§Ã£o</label>
+              <input 
+                name="description" 
+                defaultValue={expense.description} 
+                required 
+              />
+            </div>
+
+            <div className={styles.inputGroup}>
+              <label>Valor</label>
+              <input 
+                name="amount" 
+                defaultValue={Number(expense.amount).toFixed(2)} 
+                step="0.01" 
+                required 
+              />
+            </div>
+
+            <div className={styles.inputGroup}>
+              <label>Dia Vencimento</label>
+              <input 
+                name="day" 
+                type="number" 
+                min="1" max="31" 
+                defaultValue={expense.day} 
+                required 
+              />
+            </div>
+          </div>
+
+          <div className={styles.formGrid}>
+            <div className={styles.inputGroup}>
+              <CustomSelect 
+                name="type" 
+                label="Tipo"
+                initialValue={expense.type}
+                options={[
+                  { value: 'expense', label: 'Despesa (-)' },
+                  { value: 'income', label: 'Receita (+)' }
+                ]}
+              />
+            </div>
+
+            <div className={styles.inputGroup}>
+              <CustomSelect 
+                name="categoryId" 
+                label="Categoria"
+                initialValue={expense.categoryId || ""}
+                options={categories.map(cat => ({
+                  value: cat.id,
+                  label: cat.name,
+                  icon: cat.icon || undefined
+                }))}
+              />
+            </div>
+
+            <div className={styles.inputGroup}>
+              <CustomSelect 
+                name="accountId" 
+                label="Conta"
+                initialValue={expense.accountId}
+                options={accounts.map(acc => ({
+                  value: acc.id,
+                  label: acc.name
+                }))}
+              />
+            </div>
+          </div>
+
+          <button type="submit" className={styles.saveBtn}>Salvar AlteraÃ§Ãµes</button>
+          
+          <Link href="/recurring" className={styles.cancelBtn}>
+            Cancelar
+          </Link>
+        </form>
+      </div>
+    </main>
+  )
+}
+
+
+================
+ARQUIVO: page.module.scss
+================
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  padding-bottom: 80px;
+}
+
+.header {
+  margin-bottom: 30px;
+  h1 {
+    font-size: 1.8rem;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+  }
+  p {
+    color: var(--text-secondary);
+  }
+}
+
+.card {
+  background-color: var(--card-bg);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border-color);
+  margin-bottom: 24px;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+
+  /* Aplica estilos tanto ao Input quanto ao Select */
+  input, select {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    
+    /* VariÃ¡veis de cor do tema */
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    
+    font-size: 1rem;
+    
+    /* Remove aparÃªncia padrÃ£o do sistema */
+    appearance: none; 
+    -webkit-appearance: none;
+    -moz-appearance: none;
+
+    &:focus {
+      outline: 2px solid #3b82f6;
+      border-color: transparent;
+    }
+  }
+
+  /* Estilos ESPECÃFICOS apenas para o Select (Ã­cone da seta) */
+  select {
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2394a3b8%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px top 50%;
+    background-size: 12px auto;
+    padding-right: 30px;
+    cursor: pointer;
+  }
+
+  /* --- A SOLUÃ‡ÃƒO FINAL PARA AS OPÃ‡Ã•ES --- */
+  /* Usamos :global para 'furar' o isolamento do mÃ³dulo e atingir o sistema */
+  /* Isso obriga o navegador a aplicar a cor, mesmo no popup */
+  :global(option) {
+    background-color: var(--bg-color) !important;
+    color: var(--text-primary) !important;
+  }
+}
+
+.saveBtn {
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  width: 100%;
+  transition: opacity 0.2s;
+
+  &:hover {
+    opacity: 0.9;
+  }
+}
+
+/* LISTA DE ITENS */
+.item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.itemInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  .dayBadge {
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.9rem;
+  }
+}
+
+.deleteBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  opacity: 0.6;
+  transition: transform 0.2s;
+
+  &:hover {
+    opacity: 1;
+    transform: scale(1.1);
+    color: #ef4444;
+  }
+}
+
+
+================
+ARQUIVO: page.tsx
+================
+
+import { prisma } from "@/lib/prisma";
+import {
+  createRecurringExpense,
+  deleteRecurringExpense,
+} from "@/app/actions/recurring";
+import { CustomSelect } from "@/components/CustomSelect";
+import styles from "./page.module.scss";
+import Link from "next/link";
+
+export default async function RecurringPage() {
+  // Buscar dados
+  const recurring = await prisma.recurringExpense.findMany({
+    orderBy: { day: "asc" },
+    include: { category: true, account: true },
+  });
+
+  const categories = await prisma.category.findMany();
+  const accounts = await prisma.account.findMany();
+
+  return (
+    <main className={styles.container}>
+      {/* HEADER */}
+      <div className={styles.header}>
+        <Link
+          href="/"
+          style={{
+            textDecoration: "none",
+            color: "var(--text-secondary)",
+            fontSize: "0.9rem",
+            display: "block",
+            marginBottom: "10px",
+          }}
+        >
+          â† Voltar para Dashboard
+        </Link>
+        <h1>Despesas Fixas & Assinaturas</h1>
+        <p>
+          Cadastre contas que se repetem todo mÃªs para automatizar o lanÃ§amento.
+        </p>
+      </div>
+
+      {/* FORMULÃRIO */}
+      <div className={styles.card}>
+        <h2
+          style={{
+            fontSize: "1.1rem",
+            marginBottom: "20px",
+            color: "var(--text-primary)",
+          }}
+        >
+          Nova RecorrÃªncia
+        </h2>
+
+        <form action={createRecurringExpense}>
+          <div className={styles.formGrid}>
+            <div className={styles.inputGroup}>
+              <label>DescriÃ§Ã£o</label>
+              <input name="description" placeholder="Ex: Netflix" required />
+            </div>
+            <div className={styles.inputGroup}>
+              <label>Valor</label>
+              <input name="amount" placeholder="0,00" step="0.01" required />
+            </div>
+            <div className={styles.inputGroup}>
+              <label>Dia Vencimento</label>
+              <input
+                name="day"
+                type="number"
+                min="1"
+                max="31"
+                placeholder="Dia"
+                required
+              />
+            </div>
+          </div>
+
+          <div className={styles.formGrid}>
+            <div className={styles.inputGroup}>
+              <label>Tipo</label>
+              <CustomSelect
+                name="type"
+                label="Tipo"
+                initialValue="expense"
+                options={[
+                  { value: "expense", label: "Despesa (-)" },
+                  { value: "income", label: "Receita (+)" },
+                ]}
+              />
+            </div>
+            <div className={styles.inputGroup}>
+              <label>Categoria</label>
+              <CustomSelect 
+                name="categoryId" 
+                label="Categoria"
+                options={categories.map(cat => ({
+                  value: cat.id,
+                  label: cat.name,
+                  icon: cat.icon // Passamos o Ã­cone tambÃ©m!
+                }))}
+              />
+            </div>
+            <div className={styles.inputGroup}>
+              <label>Conta</label>
+              <CustomSelect 
+                name="accountId" 
+                label="Conta"
+                options={accounts.map(acc => ({
+                  value: acc.id,
+                  label: acc.name
+                }))}
+              />
+            </div>
+          </div>
+
+          <button type="submit" className={styles.saveBtn}>
+            Salvar RecorrÃªncia
+          </button>
+        </form>
+      </div>
+
+      {/* LISTA */}
+      <div className={styles.card}>
+        <h2
+          style={{
+            fontSize: "1.1rem",
+            marginBottom: "20px",
+            color: "var(--text-primary)",
+          }}
+        >
+          Cadastrados ({recurring.length})
+        </h2>
+
+        {recurring.length === 0 ? (
+          <p style={{ color: "var(--text-secondary)", textAlign: "center" }}>
+            Nenhuma conta fixa cadastrada.
+          </p>
+        ) : (
+          recurring.map((item) => (
+            <div key={item.id} className={styles.item}>
+              <div className={styles.itemInfo}>
+                <div className={styles.dayBadge}>{item.day}</div>
+                <div>
+                  <div
+                    style={{ fontWeight: "bold", color: "var(--text-primary)" }}
+                  >
+                    {item.description}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "0.8rem",
+                      color: "var(--text-secondary)",
+                    }}
+                  >
+                    {item.category?.icon} {item.category?.name} â€¢{" "}
+                    {item.account.name}
+                  </div>
+                </div>
+              </div>
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "16px" }}
+              >
+                <span
+                  style={{
+                    fontWeight: "bold",
+                    color: item.type === "expense" ? "#ef4444" : "#10b981",
+                  }}
+                >
+                  {item.type === "expense" ? "-" : "+"} R${" "}
+                  {Number(item.amount).toFixed(2)}
+                </span>
+                
+                {/* --- NOVO: BOTÃƒO EDITAR --- */}
+                 <Link href={`/recurring/edit/${item.id}`} style={{ textDecoration: 'none' }}>
+                   <button 
+                     type="button" 
+                     className={styles.deleteBtn} // Podemos reaproveitar a classe ou criar uma .editBtn
+                     title="Editar"
+                     style={{ fontSize: '1.2rem', marginRight: '8px' }} // Pequeno ajuste inline
+                   >
+                     âœï¸
+                   </button>
+                 </Link>
+                 {/* -------------------------- */}
+
+                <form action={deleteRecurringExpense}>
+                  <input type="hidden" name="id" value={item.id} />
+                  <button
+                    type="submit"
+                    className={styles.deleteBtn}
+                    title="Remover"
+                  >
+                    ðŸ—‘ï¸
+                  </button>
+                </form>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </main>
+  );
+}
+
+
+================
+ARQUIVO: page.module.scss
+================
+
+.container {
+  display: flex;
+  justify-content: center;
+  padding-top: 40px;
+  padding-bottom: 40px;
+}
+
+.card {
+  /* CORES DINÃ‚MICAS */
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+
+  border-radius: 16px;
+  padding: 32px;
+  width: 100%;
+  max-width: 550px; /* Um pouco mais largo que o de contas */
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.title {
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 32px;
+  color: var(--text-primary);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.row {
+  display: flex;
+  gap: 16px;
+  @media (max-width: 600px) { flex-direction: column; gap: 20px; }
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+
+  label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  input, select {
+    padding: 12px 16px;
+    border-radius: 8px;
+    
+    /* Inputs adaptÃ¡veis */
+    border: 1px solid var(--border-color);
+    background-color: var(--background); 
+    color: var(--text-primary);
+    
+    font-size: 1rem;
+    outline: none;
+    transition: all 0.2s;
+
+    &:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    }
+  }
+}
+
+/* O BLOCO DE PARCELAMENTO (Antigo estilo inline) */
+.installmentsBlock {
+  background-color: var(--background); /* Fica ligeiramente diferente do card */
+  border: 1px solid var(--border-color);
+  padding: 20px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  label {
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  
+  .helperText {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+    margin-left: 30px; /* Alinha com o texto do checkbox */
+  }
+}
+
+.checkboxWrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  
+  input[type="checkbox"] {
+    width: 20px; height: 20px;
+    accent-color: var(--accent); /* Cor do check */
+  }
+}
+
+.btnSubmit {
+  width: 100%;
+  padding: 14px;
+  background-color: var(--accent); /* Cor de destaque */
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  
+  &:hover { opacity: 0.9; }
+}
+
+.backLink {
+  display: block;
+  text-align: center;
+  margin-top: 24px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.2s;
+  
+  &:hover { color: var(--text-primary); }
+}
+
+
+================
+ARQUIVO: page.tsx
+================
+
+import { updateTransaction } from "@/app/actions/transactions";
+import { prisma } from "@/lib/prisma";
+import Link from "next/link";
+import styles from "../../new/page.module.scss";
+import { redirect } from "next/navigation";
+
+interface EditPageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default async function EditTransactionPage({ params }: EditPageProps) {
+  const { id } = await params;
+
+  // 1. Buscar os dados originais para preencher o form
+  const transaction = await prisma.transaction.findUnique({
+    where: { id },
+  });
+
+  if (!transaction) {
+    redirect("/"); // Se nÃ£o achar (url errada), volta pra home
+  }
+
+  // 2. Buscar dados auxiliares (Contas e Categorias)
+  const accountsRaw = await prisma.account.findMany();
+  const categories = await prisma.category.findMany();
+
+  // Recalcular saldo das contas (sÃ³ visual)
+  const accounts = await Promise.all(accountsRaw.map(async (acc) => {
+    const agg = await prisma.transaction.aggregate({
+      _sum: { amount: true },
+      where: { accountId: acc.id, isPaid: true, date: { lte: new Date() } }
+    });
+    return { ...acc, currentBalance: Number(acc.balance) + (Number(agg._sum.amount) || 0) };
+  }));
+
+  // Formatar a data para o input HTML (yyyy-MM-dd)
+  const dateValue = transaction.date.toISOString().split('T')[0];
+
+  return (
+    <main className={styles.container}>
+      <div className={styles.card}>
+        <h1 className={styles.title}>Editar MovimentaÃ§Ã£o</h1>
+
+        <form action={updateTransaction} className={styles.form}>
+          {/* ID Oculto (NecessÃ¡rio para o backend saber quem atualizar) */}
+          <input type="hidden" name="id" value={transaction.id} />
+
+          {/* DescriÃ§Ã£o */}
+          <div className={styles.formGroup}>
+            <label>DescriÃ§Ã£o</label>
+            <input 
+              type="text" 
+              name="description" 
+              defaultValue={transaction.description} 
+              required 
+            />
+          </div>
+
+           <div className={styles.row}>
+            {/* Valor (Usamos Math.abs para mostrar positivo no input) */}
+            <div className={styles.formGroup}>
+              <label>Valor (R$)</label>
+              <input 
+                type="number" 
+                name="amount" 
+                step="0.01" 
+                defaultValue={Math.abs(Number(transaction.amount))} 
+                required 
+              />
+            </div>
+
+            {/* Data */}
+            <div className={styles.formGroup}>
+              <label>Data</label>
+              <input 
+                type="date" 
+                name="date" 
+                defaultValue={dateValue} 
+                required 
+              />
+            </div>
+          </div>
+          
+           <div className={styles.row}>
+            {/* Tipo */}
+            <div className={styles.formGroup}>
+              <label>Tipo</label>
+              <select name="type" defaultValue={transaction.type}>
+                <option value="expense">ðŸ”´ Despesa</option>
+                <option value="income">ðŸŸ¢ Receita</option>
+              </select>
+            </div>
+            {/* Categoria */}
+             <div className={styles.formGroup}>
+              <label>Categoria</label>
+              <select name="categoryId" defaultValue={transaction.categoryId || ""} required>
+                <option value="" disabled>Selecione...</option>
+                {categories.map(cat => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.icon} {cat.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Conta */}
+           <div className={styles.formGroup}>
+            <label>Conta / Carteira</label>
+            <select name="accountId" defaultValue={transaction.accountId} required>
+              {accounts.map(acc => (
+                <option key={acc.id} value={acc.id}>
+                  {acc.name} (Saldo: R$ {Number(acc.currentBalance).toFixed(2)})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Status (Pago ou nÃ£o) */}
+          {/* Reutilizamos o estilo .installmentsBlock apenas para o checkbox ficar bonito */}
+          <div className={styles.installmentsBlock} style={{ marginTop: 0 }}>
+             <div className={styles.checkboxWrapper}>
+                <input 
+                    type="checkbox" 
+                    name="isPaid" 
+                    id="isPaid" 
+                    defaultChecked={transaction.isPaid}
+                />
+                <label htmlFor="isPaid">
+                    EstÃ¡ pago/consolidado?
+                </label>
+             </div>
+             {/* Removemos a parte de parcelas aqui, pois editar parcelas Ã© complexo */}
+          </div>
+
+          <button type="submit" className={styles.btnSubmit}>
+            Salvar AlteraÃ§Ãµes
+          </button>
+        </form>
+
+        <Link href="/" className={styles.backLink}>
+          â† Cancelar
+        </Link>
+      </div>
+    </main>
+  );
+}
+
+
+================
+ARQUIVO: page.module.scss
+================
+
+.container {
+  display: flex;
+  justify-content: center;
+  padding-top: 40px;
+  padding-bottom: 40px;
+}
+
+.card {
+  /* CORES DINÃ‚MICAS */
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+
+  border-radius: 16px;
+  padding: 32px;
+  width: 100%;
+  max-width: 550px; /* Um pouco mais largo que o de contas */
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.title {
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 32px;
+  color: var(--text-primary);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.row {
+  display: flex;
+  gap: 16px;
+  @media (max-width: 600px) { flex-direction: column; gap: 20px; }
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+
+  label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  input, select {
+    padding: 12px 16px;
+    border-radius: 8px;
+    
+    /* Inputs adaptÃ¡veis */
+    border: 1px solid var(--border-color);
+    background-color: var(--background); 
+    color: var(--text-primary);
+    
+    font-size: 1rem;
+    outline: none;
+    transition: all 0.2s;
+
+    &:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    }
+  }
+}
+
+/* O BLOCO DE PARCELAMENTO (Antigo estilo inline) */
+.installmentsBlock {
+  background-color: var(--background); /* Fica ligeiramente diferente do card */
+  border: 1px solid var(--border-color);
+  padding: 20px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  label {
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  
+  .helperText {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+    margin-left: 30px; /* Alinha com o texto do checkbox */
+  }
+}
+
+.checkboxWrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  
+  input[type="checkbox"] {
+    width: 20px; height: 20px;
+    accent-color: var(--accent); /* Cor do check */
+  }
+}
+
+.btnSubmit {
+  width: 100%;
+  padding: 14px;
+  background-color: var(--accent); /* Cor de destaque */
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  
+  &:hover { opacity: 0.9; }
+}
+
+.backLink {
+  display: block;
+  text-align: center;
+  margin-top: 24px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.2s;
+  
+  &:hover { color: var(--text-primary); }
+}
+
+
+================
+ARQUIVO: page.tsx
+================
+
+'use client' // OBRIGATÃ“RIO para usar onInput e hooks de estado
+
+import { useEffect, useState } from 'react';
+import { createTransaction } from "@/app/actions/transactions";
+import { getAccountsAction, getCategoriesAction } from "@/app/actions/transactions"; // VocÃª precisarÃ¡ criar essas aÃ§Ãµes simples
+import Link from "next/link";
+import styles from "./page.module.scss";
+
+export default function NewTransactionPage() {
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Carregamos os dados via Action pois estamos em um Client Component
+  useEffect(() => {
+    async function loadData() {
+      // Essas funÃ§Ãµes devem ser exportadas do seu arquivo de actions
+      const accs = await getAccountsAction();
+      const cats = await getCategoriesAction();
+      setAccounts(accs);
+      setCategories(cats);
+      setLoading(false);
+    }
+    loadData();
+  }, []);
+
+  if (loading) return <p style={{textAlign: 'center', padding: '40px'}}>Carregando...</p>;
+
+  return (
+    <main className={styles.container}>
+      <div className={styles.card}>
+        <h1 className={styles.title}>Nova MovimentaÃ§Ã£o</h1>
+
+        <form action={createTransaction} className={styles.form}>
+          
+          {/* DescriÃ§Ã£o */}
+          <div className={styles.formGroup}>
+            <label>DescriÃ§Ã£o</label>
+            <input type="text" name="description" placeholder="Ex: Mercado, SalÃ¡rio..." required />
+          </div>
+
+          <div className={styles.row}>
+            {/* Valor - CORRIGIDO PARA ACEITAR VÃRGULA */}
+            <div className={styles.formGroup}>
+              <label>Valor da Parcela (R$)</label>
+              <input 
+                type="text" // Mudamos para text para permitir a vÃ­rgula
+                name="amount" 
+                placeholder="0,00" 
+                required 
+                onInput={(e: any) => {
+                  // Substitui vÃ­rgula por ponto
+                  let value = e.target.value.replace(',', '.');
+                  // Remove tudo que nÃ£o for nÃºmero ou ponto
+                  value = value.replace(/[^0-9.]/g, '');
+                  // Evita mÃºltiplos pontos decimais
+                  const parts = value.split('.');
+                  if (parts.length > 2) {
+                    value = parts[0] + '.' + parts.slice(1).join('');
+                  }
+                  e.target.value = value;
+                }}
+              />
+            </div>
+
+            {/* Data */}
+            <div className={styles.formGroup}>
+              <label>Data 1Âª Parcela</label>
+              <input 
+                type="date" 
+                name="date" 
+                defaultValue={new Date().toISOString().split('T')[0]} 
+                required 
+              />
+            </div>
+          </div>
+          
+          <div className={styles.row}>
+            {/* Tipo */}
+            <div className={styles.formGroup}>
+              <label>Tipo</label>
+              <select name="type" defaultValue="expense">
+                <option value="expense">ðŸ”´ Despesa</option>
+                <option value="income">ðŸŸ¢ Receita</option>
+              </select>
+            </div>
+
+            {/* Categoria */}
+            <div className={styles.formGroup}>
+              <label>Categoria</label>
+              <select name="categoryId" required defaultValue="">
+                <option value="" disabled>Selecione...</option>
+                {categories.map(cat => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.icon} {cat.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Conta */}
+          <div className={styles.formGroup}>
+            <label>Conta / Carteira</label>
+            <select name="accountId" required>
+              {accounts.map(acc => (
+                <option key={acc.id} value={acc.id}>
+                  {acc.name} (Saldo: R$ {Number(acc.currentBalance).toFixed(2)})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className={styles.installmentsBlock}>
+            <div className={styles.formGroup}>
+              <label>Repetir (Parcelas)</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <input 
+                  type="number" 
+                  name="installments" 
+                  defaultValue="1" 
+                  min="1" 
+                  max="48"
+                  style={{ width: '80px' }} 
+                />
+                <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>meses (1x = Ã  vista)</span>
+              </div>
+            </div>
+
+            <div>
+                <div className={styles.checkboxWrapper}>
+                <input 
+                    type="checkbox" 
+                    name="isPaid" 
+                    id="isPaid" 
+                    defaultChecked 
+                />
+                <label htmlFor="isPaid">JÃ¡ estÃ¡ pago/consolidado?</label>
+                </div>
+                <p className={styles.helperText}>
+                  Desmarque se for um gasto planejado (opcional) ou futuro.
+                </p>
+            </div>
+          </div>
+
+          <button type="submit" className={styles.btnSubmit}>Salvar</button>
+        </form>
+
+        <Link href="/" className={styles.backLink}>â† Cancelar e voltar</Link>
+      </div>
+    </main>
+  );
+}
+
+
+================
+ARQUIVO: layout.tsx
+================
+
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "./globals.css";
+import { Sidebar } from "@/components/Sidebar";
+import { ThemeProvider } from "@/providers/theme-provider";
+
+const inter = Inter({ subsets: ["latin"] });
+
+export const metadata: Metadata = {
+  title: "FinControl",
+  description: "Controle Financeiro Pessoal",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    // O suppressHydrationWarning deve estar aqui para evitar erros com o tema escuro/claro
+    <html lang="pt-BR" suppressHydrationWarning>
+      <body className={inter.className} style={{ display: 'flex', minHeight: '100vh' }}>
+        
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+          
+          <Sidebar />
+
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            {children}
+          </div>
+
+        </ThemeProvider>
+
+      </body>
+    </html>
+  );
+}
+
+
+================
+ARQUIVO: page.module.scss
+================
+
+.wrapper {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+.title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--text-primary); /* VariÃ¡vel */
+}
+
+.sectionTitle {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-secondary); /* VariÃ¡vel */
+  margin-bottom: 0;
+}
+
+.btnAddBank {
+  background: var(--card-bg); /* VariÃ¡vel */
+  color: var(--text-secondary); /* VariÃ¡vel */
+  border: 1px solid var(--border-color); /* VariÃ¡vel */
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: bold;
+  transition: all 0.2s;
+
+  &:hover {
+    background: var(--hover-bg);
+    color: var(--text-primary);
+  }
+}
+
+.filters {
+  display: flex;
+  gap: 12px;
+}
+
+.btnPrimary {
+  background-color: var(--accent); /* VariÃ¡vel */
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.2s;
+
+  &:hover {
+    filter: brightness(1.1);
+  }
+}
+
+.kpiRow {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.kpi {
+  background: var(--card-bg); /* VariÃ¡vel */
+  border: 1px solid var(--border-color); /* VariÃ¡vel */
+  padding: 20px;
+  border-radius: 16px;
+  min-width: 220px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Bordas coloridas para diferenciar contas */
+.kpiBlue { border-left: 4px solid #3b82f6; }
+.kpiGreen { border-left: 4px solid #10b981; }
+.kpiPink { border-left: 4px solid #ec4899; }
+
+.kpiHeader {
+  font-size: 14px;
+  color: var(--text-secondary); /* VariÃ¡vel */
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.kpiValue {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary); /* VariÃ¡vel */
+}
+
+.subTitle {
+  color: var(--text-secondary); /* VariÃ¡vel */
+  font-size: 14px;
+}
+
+/* LAYOUT GERAL */
+.grid2 {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card {
+  background: var(--card-bg); /* VariÃ¡vel */
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid var(--border-color); /* VariÃ¡vel */
+}
+
+.cardTitle {
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 1.1rem;
+  color: var(--text-secondary); /* VariÃ¡vel */
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+/* TABELA DE TRANSAÃ‡Ã•ES */
+.table {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.trowHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px 8px 16px;
+  border-bottom: 1px solid var(--border-color); /* VariÃ¡vel */
+  font-size: 13px;
+  color: var(--text-secondary); /* VariÃ¡vel */
+  font-weight: 600;
+  text-transform: uppercase;
+  
+  /* MantÃ©m layout das colunas */
+  span:nth-child(1) { flex: 1; } /* DescriÃ§Ã£o */
+  span:nth-child(2) { width: 100px; } /* Data */
+  span:nth-child(3) { width: 120px; text-align: right; } /* Valor */
+  span:nth-child(4) { width: 50px; } /* AÃ§Ãµes */
+}
+
+.trow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--background); /* Leve contraste dentro do card */
+  border-radius: 12px;
+  transition: transform 0.2s;
+
+  &:hover {
+    transform: translateX(4px);
+    background: var(--hover-bg); /* VariÃ¡vel */
+  }
+}
+
+.positive { color: #10b981; font-weight: 600; }
+.negative { color: #ef4444; font-weight: 600; }
+
+/* SEÃ‡ÃƒO PATRIMÃ”NIO */
+.patrimonySection {
+  margin-bottom: 24px;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+  @media (max-width: 768px) { grid-template-columns: 1fr; }
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.patrimonyCard {
+  @extend .card;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  
+  .label {
+    color: var(--text-secondary); /* VariÃ¡vel */
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    font-weight: bold;
+    margin-bottom: 10px;
+  }
+
+  .bigValue {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--text-primary); /* VariÃ¡vel */
+    margin-bottom: 8px;
+  }
+
+  .comparisonBox {
+    padding-top: 16px;
+    border-top: 1px solid var(--border-color); /* VariÃ¡vel */
+
+    p {
+      font-size: 0.85rem;
+      color: var(--text-secondary); /* VariÃ¡vel */
+      margin-bottom: 4px;
+    }
+
+    .diffValue {
+      font-size: 1.1rem;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+
+      &.profit { color: #4ade80; }
+      &.loss { color: #f87171; }
+    }
+  }
+}
+
+/* CARD RESUMO MENSAL */
+.summaryGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+  @media (max-width: 768px) { grid-template-columns: 1fr; }
+}
+
+.summaryCard {
+  background: var(--card-bg); /* VariÃ¡vel */
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color); /* VariÃ¡vel */
+  text-align: center;
+
+  span {
+    display: block;
+    color: var(--text-secondary); /* VariÃ¡vel */
+    font-size: 0.875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    &.green { color: #4ade80; }
+    &.red { color: #f87171; }
+    &.blue { color: #60a5fa; }
+  }
+}
+
+/* LISTA DE CATEGORIAS */
+.categoryList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.categoryItem {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.catHeader {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary); /* VariÃ¡vel */
+}
+
+.catBarBg {
+  width: 100%;
+  height: 8px;
+  background-color: var(--background); /* Fundo da barra */
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.catBarFill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease-out;
+}
+
+.editBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+  padding: 0 8px; /* Espacinho para clicar melhor */
+
+  /* O CSS resolve o hover sozinho! */
+  &:hover {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+
+.trowInfo {
+  display: flex;
+  flex-direction: column;
+  flex: 1; /* Ocupa o espaÃ§o disponÃ­vel */
+  
+  strong {
+    color: var(--text-primary); /* Preto no Claro, Branco no Escuro */
+    font-size: 0.95rem;
+  }
+
+  .trowDetail {
+    font-size: 0.75rem;
+    color: var(--text-secondary); /* Cinza adaptÃ¡vel */
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 2px;
+  }
+}
+
+.trowDate {
+  font-size: 0.85rem;
+  color: var(--text-secondary); /* Cinza adaptÃ¡vel */
+  width: 100px;
+  text-align: center;
+}
+
+/* MantÃ©m o valor com cor fixa (verde/vermelho) ou adaptÃ¡vel se preferires */
+.trowValue {
+  font-weight: 700;
+  font-size: 0.95rem;
+  width: 120px;
+  text-align: right;
+  
+  &.expense { color: #ef4444; } /* Vermelho */
+  &.income { color: #10b981; }  /* Verde */
+}
+
+
+================
+ARQUIVO: page.tsx
+================
+
+import { prisma } from "@/lib/prisma";
+import styles from "./page.module.scss";
+import Link from "next/link";
+import { MonthSelector } from "@/components/MonthSelector";
+import { DeleteButton } from "@/components/DeleteButton";
+import { subMonths, endOfMonth } from "date-fns";
+import { toggleTransactionStatus } from "@/app/actions/transactions";
+
+// ImportaÃ§Ãµes que vocÃª jÃ¡ tinha colocado corretamente
+import { checkPendingRecurring } from "@/app/actions/recurring";
+import { RecurringAlert } from "@/components/RecurringAlert";
+import { ExpenseChart } from "@/components/ExpenseChart"; // (Opcional se quiser voltar com o grÃ¡fico depois)
+
+
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ month?: string; year?: string }>;
+}) {
+  const params = await searchParams;
+  const today = new Date();
+
+  const month = params.month ? Number(params.month) : today.getMonth();
+  const year = params.year ? Number(params.year) : today.getFullYear();
+  
+ // --- PARTE 1: A LÃ“GICA (CORRIGIDA DEFINITIVA) ---
+  const pendingRecurringRaw = await checkPendingRecurring(month, year);
+
+  // CONVERSÃƒO E LIMPEZA:
+  // Criamos um objeto novo contendo APENAS os campos simples.
+  // Isso remove o objeto 'account' e 'category' que contÃªm outros Decimals (como o saldo).
+  const pendingRecurring = pendingRecurringRaw.map(item => ({
+    id: item.id,
+    description: item.description,
+    day: item.day,
+    amount: Number(item.amount) 
+  }));
+  // -
+  const startDate = new Date(year, month, 1);
+  const endDate = new Date(year, month + 1, 1);
+
+  // 1. CÃLCULO PATRIMONIAL
+  const accountsRaw = await prisma.account.findMany();
+  const initialTotalBalance = accountsRaw.reduce(
+    (acc, account) => acc + Number(account.balance),
+    0
+  );
+
+  const transactionsUntilNow = await prisma.transaction.aggregate({
+    _sum: { amount: true },
+    where: { isPaid: true, date: { lte: today } },
+  });
+  const currentTotalBalance =
+    initialTotalBalance + (Number(transactionsUntilNow._sum.amount) || 0);
+
+  const lastMonthEnd = endOfMonth(subMonths(today, 1));
+  const transactionsUntilLastMonth = await prisma.transaction.aggregate({
+    _sum: { amount: true },
+    where: { isPaid: true, date: { lte: lastMonthEnd } },
+  });
+  const lastMonthTotalBalance =
+    initialTotalBalance + (Number(transactionsUntilLastMonth._sum.amount) || 0);
+
+  const diff = currentTotalBalance - lastMonthTotalBalance;
+
+  // 2. DADOS DAS CONTAS
+  const accounts = await Promise.all(
+    accountsRaw.map(async (acc) => {
+      const agg = await prisma.transaction.aggregate({
+        _sum: { amount: true },
+        where: { accountId: acc.id, isPaid: true, date: { lte: today } },
+      });
+      return {
+        ...acc,
+        currentBalance: Number(acc.balance) + (Number(agg._sum.amount) || 0),
+      };
+    })
+  );
+
+  // 3. DADOS DO DASHBOARD
+  const transactions = await prisma.transaction.findMany({
+    where: { date: { gte: startDate, lt: endDate } },
+    orderBy: { date: "desc" },
+    include: { category: true, account: true },
+  });
+
+  const expensesGrouped = await prisma.transaction.groupBy({
+    by: ["categoryId"],
+    where: {
+      amount: { lt: 0 },
+      categoryId: { not: null },
+      date: { gte: startDate, lt: endDate },
+    },
+    _sum: { amount: true },
+  });
+
+  const allCategories = await prisma.category.findMany();
+  const categoryStats = expensesGrouped
+    .map((stat) => {
+      const categoryInfo = allCategories.find((c) => c.id === stat.categoryId);
+      return { ...categoryInfo, total: Number(stat._sum.amount) };
+    })
+    .sort((a, b) => a.total - b.total)
+    .slice(0, 5);
+
+  const maxExpense =
+    categoryStats.length > 0 ? Math.abs(categoryStats[0].total) : 0;
+
+  const totalIncome = transactions
+    .filter((t) => Number(t.amount) > 0)
+    .reduce((acc, t) => acc + Number(t.amount), 0);
+  const totalExpense = transactions
+    .filter((t) => Number(t.amount) < 0)
+    .reduce((acc, t) => acc + Number(t.amount), 0);
+  const monthlyBalance = totalIncome + totalExpense;
+
+  const formatMoney = (val: number) =>
+    new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(val);
+  const getKpiColor = (index: number) =>
+    [styles.kpiBlue, styles.kpiGreen, styles.kpiPink][index % 3];
+
+
+  return (
+    <main className={styles.wrapper}>
+      <div className={styles.topbar}>
+        <h1 className={styles.title}>Dashboard</h1>
+        <MonthSelector />
+        <div className={styles.filters}>
+          <Link href="/transactions/new">
+            <button className={styles.btnPrimary}>+ Nova TransaÃ§Ã£o</button>
+          </Link>
+        </div>
+      </div>
+
+      {/* SEÃ‡ÃƒO 1: SALDO TOTAL E COMPARATIVO */}
+      <section className={styles.patrimonySection}>
+        {/* Lista de Contas (Esquerda) */}
+        <div>
+          <div className={styles.sectionHeader}>
+            <h2 className={styles.sectionTitle}>Minhas Contas</h2>
+            <Link href="/accounts/new" style={{ textDecoration: "none" }}>
+              <button className={styles.btnAddBank}>+ Banco</button>
+            </Link>
+          </div>
+          <div className={styles.kpiRow}>
+            {accounts.map((account, index) => (
+              <div
+                key={account.id}
+                className={`${styles.kpi} ${getKpiColor(index)}`}
+              >
+                <div className={styles.kpiHeader}>{account.type}</div>
+                <div className={styles.kpiValue}>
+                  {formatMoney(account.currentBalance)}
+                </div>
+                <div
+                  className={styles.subTitle}
+                  style={{ opacity: 0.8, fontSize: "14px" }}
+                >
+                  {account.name}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* CARD DE EVOLUÃ‡ÃƒO (Direita) */}
+        <div className={styles.patrimonyCard}>
+          <div className={styles.label}>PatrimÃ´nio Total</div>
+          <div className={styles.bigValue}>
+            {formatMoney(currentTotalBalance)}
+          </div>
+
+          <div className={styles.comparisonBox}>
+            <p>Em relaÃ§Ã£o ao mÃªs passado:</p>
+            <div
+              className={`${styles.diffValue} ${
+                diff >= 0 ? styles.profit : styles.loss
+              }`}
+            >
+              <span>{diff >= 0 ? "â–²" : "â–¼"}</span>
+              <span>
+                {diff >= 0 ? "+" : ""} {formatMoney(diff)}
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* --- PARTE 2: O VISUAL (NOVO) --- */}
+      {/* Colocamos aqui para aparecer antes dos nÃºmeros mensais */}
+      <RecurringAlert 
+        // ADICIONE ESTA LINHA ABAIXO (A MÃGICA ðŸª„)
+        key={`${month}-${year}`} 
+        
+        pendingExpenses={pendingRecurring} 
+        currentMonth={month}
+        currentYear={year}
+      />
+      {/* -------------------------------- */}
+
+      {/* SEÃ‡ÃƒO 2: RESUMO MENSAL */}
+      <div className={styles.summaryGrid}>
+        <div className={styles.summaryCard}>
+          <span>Entradas (MÃªs)</span>
+          <div className={`${styles.value} ${styles.green}`}>
+            {formatMoney(totalIncome)}
+          </div>
+        </div>
+        <div className={styles.summaryCard}>
+          <span>SaÃ­das (MÃªs)</span>
+          <div className={`${styles.value} ${styles.red}`}>
+            {formatMoney(totalExpense)}
+          </div>
+        </div>
+        <div className={styles.summaryCard}>
+          <span>BalanÃ§o (MÃªs)</span>
+          <div
+            className={`${styles.value} ${
+              monthlyBalance >= 0 ? styles.blue : styles.red
+            }`}
+          >
+            {formatMoney(monthlyBalance)}
+          </div>
+        </div>
+      </div>
+
+      {/* SEÃ‡ÃƒO 3: DETALHES */}
+      <div className={styles.grid2}>
+        <div className={styles.card}>
+          <h3 className={styles.cardTitle}>
+            MovimentaÃ§Ãµes de{" "}
+            {new Date(year, month).toLocaleString("pt-BR", { month: "long" })}
+          </h3>
+          <div className={styles.table}>
+            <div className={styles.trowHeader}>
+              <span>DescriÃ§Ã£o</span>
+              <span>Data</span>
+              <span style={{ textAlign: "right" }}>Valor</span>
+              <span></span>
+            </div>
+            {transactions.length === 0 ? (
+              <div
+                style={{
+                  padding: "20px",
+                  textAlign: "center",
+                  color: "#64748b",
+                }}
+              >
+                Nenhuma transaÃ§Ã£o neste mÃªs.
+              </div>
+            ) : (
+              transactions.map((tx) => (
+                <div key={tx.id} className={styles.trow}>
+                  {/* 1. STATUS */}
+                  <form
+                    action={toggleTransactionStatus}
+                    style={{ display: "flex", alignItems: "center" }}
+                  >
+                    <input type="hidden" name="id" value={tx.id} />
+                    <input
+                      type="hidden"
+                      name="isPaid"
+                      value={String(tx.isPaid)}
+                    />
+
+                    <button
+                      type="submit"
+                      title={
+                        tx.isPaid
+                          ? "Marcar como pendente"
+                          : "Marcar como pago/consolidado"
+                      }
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        cursor: "pointer",
+                        fontSize: "1.5rem",
+                        marginRight: "12px",
+                        opacity: tx.isPaid ? 1 : 0.6,
+                        transition: "transform 0.2s",
+                      }}
+                    >
+                      {tx.isPaid ? "âœ…" : "â³"}
+                    </button>
+                  </form>
+
+                  {/* 2. Ãcone da Categoria + DescriÃ§Ã£o + Conta */}
+                  <div className={styles.trowInfo}>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                      }}
+                    >
+                      <span style={{ fontSize: "1.2rem" }}>
+                        {tx.category?.icon || "ðŸ“„"}
+                      </span>
+                      <strong>{tx.description}</strong>
+                    </div>
+
+                    <span className={styles.trowDetail}>
+                      {tx.category?.name} â€¢ {tx.account.name}
+                      {!tx.isPaid && (
+                        <span style={{ color: "#eab308", fontWeight: "bold" }}>
+                          {" "}
+                          (Planejado)
+                        </span>
+                      )}
+                    </span>
+                  </div>
+
+                  {/* 3. Data */}
+                  <div className={styles.trowDate}>
+                    {new Date(tx.date).toLocaleDateString("pt-BR", {
+                      timeZone: "UTC",
+                    })}
+                  </div>
+
+                  {/* 4. Valor */}
+                  <div
+                    className={`${styles.trowValue} ${
+                      tx.type === "expense" ? styles.expense : styles.income
+                    }`}
+                  >
+                    {tx.type === "expense" ? "-" : "+"}
+                    {Number(tx.amount).toLocaleString("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                    })}
+                  </div>
+
+                  {/* 5. AÃ§Ãµes */}
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "8px",
+                      justifyContent: "flex-end",
+                      alignItems: "center",
+                      minWidth: "80px",
+                      height: "100%",
+                    }}
+                  >
+                    <Link
+                      href={`/transactions/edit/${tx.id}`}
+                      style={{
+                        textDecoration: "none",
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                    >
+                      <button className={styles.editBtn} title="Editar">
+                        âœï¸
+                      </button>
+                    </Link>
+
+                    <DeleteButton
+                      transactionId={tx.id}
+                      installmentId={tx.installmentId}
+                    />
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className={styles.card}>
+          <h3 className={styles.cardTitle}>Gastos do MÃªs</h3>
+          {categoryStats.length === 0 ? (
+            <p className="text-gray-400">Nenhuma despesa neste mÃªs.</p>
+          ) : (
+            <div className={styles.categoryList}>
+              {categoryStats.map((cat) => {
+                const percentage = Math.round(
+                  (Math.abs(cat.total) / maxExpense) * 100
+                );
+                return (
+                  <div key={cat.id} className={styles.categoryItem}>
+                    <div className={styles.catHeader}>
+                      <span>
+                        {cat.icon} {cat.name}
+                      </span>
+                      <span className={styles.negative}>
+                        {formatMoney(cat.total)}
+                      </span>
+                    </div>
+                    <div className={styles.catBarBg}>
+                      <div
+                        className={styles.catBarFill}
+                        style={{
+                          width: `${percentage}%`,
+                          backgroundColor: cat.color || "#64748b",
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </main>
+  );
+}
+
+
+================
+ARQUIVO: index.tsx
+================
+
+'use client'
+import { useEffect, useState } from 'react';
+import { getAccountStats } from '@/app/actions/accounts';
+import styles from './styles.module.scss';
+import Link from 'next/link';
+import { CustomSelect } from '@/components/CustomSelect';
+
+interface Props {
+  account: { id: string; name: string; type: string; balance: number };
+  onClose: () => void;
+}
+
+export function AccountModal({ account, onClose }: Props) {
+  const [data, setData] = useState<any>(null);
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+  
+  // Estado para controlar a ordem (PadrÃ£o: Data Descendente)
+  const [sortOrder, setSortOrder] = useState('date-desc');
+
+  useEffect(() => {
+    getAccountStats(account.id).then(setData);
+  }, [account.id]);
+
+  const formatMoney = (val: number) => 
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+
+  // 1. Primeiro filtramos por mÃªs (se houver seleÃ§Ã£o)
+  const filteredTransactions = data?.transactions.filter((t: any) => {
+    if (selectedMonth === null) return true;
+    return new Date(t.date).getMonth() === selectedMonth;
+  }) || [];
+
+  // 2. AGORA ORDENAMOS essa lista filtrada
+  const sortedTransactions = [...filteredTransactions].sort((a: any, b: any) => {
+    switch (sortOrder) {
+      case 'date-desc': 
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+      case 'date-asc': 
+        return new Date(a.date).getTime() - new Date(b.date).getTime();
+      case 'amount-desc': 
+        return b.amount - a.amount;
+      case 'amount-asc': 
+        return a.amount - b.amount;
+      case 'alpha-asc': 
+        return a.description.localeCompare(b.description);
+      default:
+        return 0;
+    }
+  });
+
+  /**
+   * CORREÃ‡ÃƒO: Saldo do MÃªs 
+   * Como os valores de despesa jÃ¡ vÃªm negativos do banco (ex: -100), 
+   * apenas somamos todos os valores. O sinal de menos cuidarÃ¡ da subtraÃ§Ã£o.
+   */
+  const monthTotal = filteredTransactions.reduce((acc: number, t: any) => acc + t.amount, 0);
+
+  /**
+   * AJUSTE DE SEGURANÃ‡A: CÃ¡lculo do Valor MÃ¡ximo para o GrÃ¡fico
+   * Usamos Math.abs para garantir que despesas (negativas) nÃ£o quebrem o cÃ¡lculo do limite.
+   */
+  const maxVal = data 
+    ? Math.max(...data.chart.map((d: any) => Math.max(Math.abs(d.income), Math.abs(d.expense))), 100) 
+    : 100;
+
+  return (
+    <div className={styles.overlay} onClick={onClose}>
+      <div className={styles.modal} onClick={e => e.stopPropagation()}>
+        
+        {/* HEADER */}
+        <div className={styles.header}>
+          <div style={{display:'flex', gap:'12px', alignItems:'center'}}>
+            <div style={{fontSize:'2rem'}}>{account.type === 'Carteira' ? 'ðŸ’µ' : 'ðŸ¦'}</div>
+            <div>
+              <h2 style={{margin:0, fontSize:'1.2rem'}}>{account.name}</h2>
+              <span style={{fontSize:'0.85rem', color:'gray'}}>
+                Saldo Atual: <b style={{color: account.balance >= 0 ? '#10b981' : '#ef4444'}}>{formatMoney(account.balance)}</b>
+              </span>
+            </div>
+          </div>
+          <button className={styles.closeBtn} onClick={onClose}>&times;</button>
+        </div>
+
+        {/* CONTEÃšDO */}
+        <div className={styles.scrollContent}>
+          {data ? (
+            <>
+              {/* RESUMO KPI */}
+              <div className={styles.summaryGrid}>
+                <div className={styles.summaryCard}>
+                  <span style={{color:'#10b981'}}>Entradas (Ano)</span>
+                  <strong>{formatMoney(data.kpis.totalIncome)}</strong>
+                </div>
+                <div className={styles.summaryCard}>
+                  <span style={{color:'#ef4444'}}>SaÃ­das (Ano)</span>
+                  <strong>{formatMoney(data.kpis.totalExpense)}</strong>
+                </div>
+                <div className={styles.summaryCard}>
+                  <span>BalanÃ§o</span>
+                  <strong style={{color: data.kpis.periodBalance >= 0 ? '#3b82f6' : '#ef4444'}}>
+                    {formatMoney(data.kpis.periodBalance)}
+                  </strong>
+                </div>
+              </div>
+
+              {/* GRÃFICO MENSAL */}
+              <div className={styles.chartHeader}>
+                <h3>Filtro Mensal</h3>
+                {selectedMonth !== null && (
+                  <button onClick={() => setSelectedMonth(null)}>Ver Ano Todo</button>
+                )}
+              </div>
+              <div className={styles.chartContainer}>
+                {data.chart.map((m: any, idx: number) => (
+                  <div 
+                    key={idx} 
+                    className={`${styles.monthGroup} ${selectedMonth === m.index ? styles.selected : ''}`}
+                    onClick={() => setSelectedMonth(selectedMonth === m.index ? null : m.index)}
+                    title={`Ver ${m.label}`}
+                  >
+                    {/* Alturas calculadas proporcionalmente ao maxVal */}
+                    <div className={`${styles.bar} ${styles.incomeBar}`} style={{ height: `${(Math.abs(m.income) / maxVal) * 100}%` }} />
+                    <div className={`${styles.bar} ${styles.expenseBar}`} style={{ height: `${(Math.abs(m.expense) / maxVal) * 100}%` }} />
+                    <span className={styles.monthLabel}>{m.label[0]}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* LISTA DE TRANSAÃ‡Ã•ES */}
+              <div className={styles.listHeader}>
+                <div className={styles.listTitleArea}>
+                  <h3 style={{margin:0, fontSize:'1rem'}}>
+                    {selectedMonth !== null 
+                      ? `Extrato: ${new Date(2023, selectedMonth, 1).toLocaleDateString('pt-BR', {month:'long'})}` 
+                      : "Todas as TransaÃ§Ãµes"}
+                  </h3>
+                  {selectedMonth !== null && (
+                    <span style={{fontSize:'0.8rem', color: monthTotal >= 0 ? '#10b981' : '#ef4444'}}>
+                      Resumo: {formatMoney(monthTotal)}
+                    </span>
+                  )}
+                </div>
+
+                <div className={styles.selectWrapper}> 
+                  <CustomSelect 
+                    name="sort" 
+                    initialValue={sortOrder}
+                    onChange={(val) => setSortOrder(val)}
+                    options={[
+                      { value: "date-desc", label: "ðŸ“… Recentes" },
+                      { value: "date-asc", label: "ðŸ“… Antigas" },
+                      { value: "amount-desc", label: "ðŸ’° Maior Valor" },
+                      { value: "amount-asc", label: "ðŸ’° Menor Valor" },
+                      { value: "alpha-asc", label: "ðŸ”¤ Nome" }
+                    ]}
+                  />
+                </div>
+              </div>
+
+              <div className={styles.transactionList}>
+                {sortedTransactions.length === 0 ? (
+                  <p style={{color:'gray', textAlign:'center', padding:'40px'}}>
+                    Nenhuma movimentaÃ§Ã£o encontrada.
+                  </p>
+                ) : (
+                  sortedTransactions.map((t: any) => (
+                    <div key={t.id} className={styles.transactionItem}>
+                      <div className={styles.tInfo}>
+                        <div className={styles.tIcon}>{t.categoryIcon}</div>
+                        <div>
+                          <span style={{display:'block', fontWeight:500}}>{t.description}</span>
+                          <span className={styles.tDate}>
+                            {new Date(t.date).toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'})} â€¢ {t.categoryName}
+                          </span>
+                        </div>
+                      </div>
+                      <span className={t.type === 'income' ? styles.income : styles.expense} style={{fontWeight:'bold'}}>
+                        {t.type === 'income' ? '+' : '-'} {formatMoney(t.amount)}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+              
+              <div style={{marginTop:'30px', textAlign:'center'}}>
+                <Link href={`/accounts/edit/${account.id}`} style={{color:'#3b82f6', textDecoration:'none', fontSize:'0.9rem'}}>
+                  ConfiguraÃ§Ãµes da Conta
+                </Link>
+              </div>
+            </>
+          ) : (
+            <p style={{textAlign:'center', padding:'40px'}}>Carregando...</p>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+================
+ARQUIVO: styles.module.scss
+================
+
+/* ... Mantenha overlay, modal e header iguais ... */
+.overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.85); backdrop-filter: blur(5px);
+  display: flex; justify-content: center; align-items: center; z-index: 1000;
+  padding: 20px;
+}
+
+.modal {
+  background: var(--card-bg); width: 100%; max-width: 800px; /* Bem largo para ver dados */
+  border-radius: 24px; border: 1px solid var(--border-color);
+  overflow: hidden; display: flex; flex-direction: column;
+  height: 85vh; /* Altura fixa para forÃ§ar o scroll interno */
+}
+
+.header {
+  padding: 20px 24px; border-bottom: 1px solid var(--border-color);
+  display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+}
+.closeBtn { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary); }
+
+/* ConteÃºdo RolÃ¡vel */
+.scrollContent {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1; /* Ocupa o resto do espaÃ§o */
+}
+
+/* KPIS */
+.summaryGrid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 30px;
+}
+.summaryCard {
+  background-color: var(--bg-color); border: 1px solid var(--border-color);
+  padding: 16px; border-radius: 12px; text-align: center;
+  span { font-size: 0.85rem; color: var(--text-secondary); display: block; margin-bottom: 8px; }
+  strong { font-size: 1.1rem; display: block; }
+}
+
+/* GRÃFICO INTERATIVO */
+.chartHeader {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;
+  h3 { font-size: 0.9rem; color: var(--text-secondary); margin: 0; }
+  button {
+    background: none; border: 1px solid var(--border-color); color: var(--text-primary);
+    padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer;
+    &:hover { background: var(--bg-color); }
+  }
+}
+
+.chartContainer {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  height: 200px; gap: 4px; margin-bottom: 30px;
+  padding-bottom: 25px; border-bottom: 1px solid var(--border-color);
+}
+
+.monthGroup {
+  flex: 1; height: 100%; display: flex; align-items: flex-end; justify-content: center; 
+  gap: 4px; position: relative; cursor: pointer;
+  border-radius: 8px;
+  transition: background-color 0.2s;
+
+  /* Efeito Hover no MÃªs inteiro */
+  &:hover { background-color: rgba(255, 255, 255, 0.05); }
+
+  /* ESTADO SELECIONADO (O Filtro Ativo) */
+  &.selected {
+    background-color: rgba(59, 130, 246, 0.1); /* Fundo Azulado */
+    border-bottom: 3px solid #3b82f6;
+    
+    .monthLabel { color: #3b82f6; font-weight: bold; }
+  }
+}
+
+.bar {
+  width: 8px; border-radius: 4px 4px 0 0; opacity: 0.6; transition: all 0.3s;
+  min-height: 4px; /* Garante que a barra aparece mesmo se valor for baixo */
+}
+
+/* Barras ficam mais vivas quando o mÃªs estÃ¡ selecionado */
+.monthGroup.selected .bar { opacity: 1; }
+
+.incomeBar { background-color: #10b981; }
+.expenseBar { background-color: #ef4444; }
+
+.monthLabel {
+  position: absolute; bottom: -25px; font-size: 0.7rem; 
+  color: var(--text-secondary); text-transform: uppercase;
+}
+
+/* LISTA */
+.listHeader {
+  position: sticky; top: -24px; background: var(--card-bg); /* Gruda no topo ao rolar */
+  padding: 10px 0; margin-bottom: 10px; z-index: 10;
+  border-bottom: 1px solid var(--border-color);
+  display: flex; justify-content: space-between;
+}
+
+.transactionItem {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 0; border-bottom: 1px solid var(--border-color);
+}
+.tInfo { display: flex; align-items: center; gap: 12px; }
+.tIcon { width: 40px; height: 40px; background: var(--bg-color); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+.tDate { font-size: 0.8rem; color: var(--text-secondary); }
+.income { color: #10b981; }
+.expense { color: #ef4444; }
+
+.listHeader {
+  position: sticky; top: -24px; background: var(--card-bg);
+  padding: 10px 0; margin-bottom: 10px; z-index: 10;
+  border-bottom: 1px solid var(--border-color);
+  
+  /* Flexbox para alinhar TÃ­tulo, Select e Saldo */
+  display: flex; flex-direction: column; gap: 8px;
+
+  @media(min-width: 600px) {
+    flex-direction: row; justify-content: space-between; align-items: center;
+  }
+}
+
+.listTitleArea {
+  display: flex; flex-direction: column;
+}
+
+.sortSelect {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  outline: none;
+  
+  &:hover { border-color: #3b82f6; }
+}
+
+.selectWrapper {
+  width: 180px; /* Tamanho fixo menor e mais elegante */
+  z-index: 20;  /* MantÃ©m por cima da lista */
+  
+  @media (max-width: 600px) {
+    width: 100%; /* No celular fica largura total para facilitar o toque */
+  }
+}
+
+
+================
+ARQUIVO: index.tsx
+================
+
+'use client'
+
+import { useEffect, useState } from 'react';
+import { getCategoryStats } from '@/app/actions/categories';
+import styles from './styles.module.scss';
+import Link from 'next/link';
+
+interface Props {
+  category: {
+    id: string;
+    name: string;
+    icon: string;
+    color: string;
+  };
+  onClose: () => void;
+}
+
+interface StatsData {
+  kpis: { monthTotal: number; yearTotal: number; average: number };
+  chart: { label: string; total: number }[];
+  recent: { id: string; description: string; amount: number; date: Date }[];
+}
+
+export function CategoryModal({ category, onClose }: Props) {
+  const [data, setData] = useState<StatsData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getCategoryStats(category.id).then(stats => {
+      setData(stats);
+      setLoading(false);
+    });
+  }, [category.id]);
+
+  const formatMoney = (val: number) => 
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+
+  // CORREÃ‡ÃƒO 1: Calculamos o mÃ¡ximo usando Math.abs para ignorar negativos
+  const maxChartValue = data 
+    ? Math.max(...data.chart.map(d => Math.abs(d.total)), 10) 
+    : 100;
+
+  return (
+    <div className={styles.overlay} onClick={onClose}>
+      <div className={styles.modal} onClick={e => e.stopPropagation()}>
+        
+        <div className={styles.header}>
+          <div className={styles.titleArea}>
+            <div 
+              className={styles.icon} 
+              style={{ backgroundColor: category.color + '20', color: category.color }}
+            >
+              {category.icon}
+            </div>
+            <div>
+              <h2>{category.name}</h2>
+              <span>Detalhes de Despesas</span>
+            </div>
+          </div>
+          <button className={styles.closeBtn} onClick={onClose}>&times;</button>
+        </div>
+
+        <div className={styles.content}>
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>Carregando...</div>
+          ) : data ? (
+            <>
+              {/* KPIS */}
+              <div className={styles.kpiGrid}>
+                <div className={`${styles.kpiCard} ${styles.highlight}`}>
+                  <span className={styles.label}>Este MÃªs</span>
+                  <span className={styles.value}>{formatMoney(data.kpis.monthTotal)}</span>
+                </div>
+                <div className={styles.kpiCard}>
+                  <span className={styles.label}>MÃ©dia Mensal</span>
+                  <span className={styles.value}>{formatMoney(data.kpis.average)}</span>
+                </div>
+                <div className={styles.kpiCard}>
+                  <span className={styles.label}>Total Anual</span>
+                  <span className={styles.value}>{formatMoney(data.kpis.yearTotal)}</span>
+                </div>
+              </div>
+
+              {/* GRÃFICO */}
+              <div className={styles.chartSection}>
+                <h3>EvoluÃ§Ã£o Mensal</h3>
+                <div className={styles.chartContainer}>
+                  {data.chart.map((bar, idx) => {
+                    // CORREÃ‡ÃƒO 2: Usamos Math.abs() para garantir que o grÃ¡fico entenda o valor
+                    const absValue = Math.abs(bar.total);
+                    const heightPercent = (absValue / maxChartValue) * 100;
+                    
+                    const displayValue = absValue > 0 
+                      ? new Intl.NumberFormat('pt-BR', { notation: "compact", maximumFractionDigits: 1 }).format(absValue)
+                      : "";
+
+                    return (
+                      <div key={idx} className={styles.barWrapper}>
+                        
+                        {/* CORREÃ‡ÃƒO 3: Verificamos se absValue > 0 */}
+                        {absValue > 0 && (
+                          <span className={styles.barValue} title={formatMoney(bar.total)}>
+                             R$ {displayValue}
+                          </span>
+                        )}
+
+                        <div 
+                          className={styles.bar} 
+                          style={{ 
+                            height: `${heightPercent}%`, 
+                            backgroundColor: category.color 
+                          }} 
+                        />
+                        <span className={styles.monthLabel}>{bar.label.replace('.', '')}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* LISTA RECENTE */}
+              <div className={styles.listSection}>
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                  <h3>Ãšltimas TransaÃ§Ãµes</h3>
+                  <Link href={`/categories/edit/${category.id}`} style={{fontSize: '0.8rem', color: '#3b82f6', textDecoration: 'none'}}>
+                    Editar Categoria
+                  </Link>
+                </div>
+                
+                {data.recent.length === 0 ? (
+                   <p style={{fontSize: '0.9rem', color: 'var(--text-secondary)'}}>Nenhuma transaÃ§Ã£o recente.</p>
+                ) : (
+                  data.recent.map(t => (
+                    <div key={t.id} className={styles.transactionItem}>
+                      <div>
+                        <span className={styles.tDate}>
+                          {new Date(t.date).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}
+                        </span>
+                        <span>{t.description}</span>
+                      </div>
+                      <span className={styles.tVal}>{formatMoney(t.amount)}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </>
+          ) : (
+             <p>Erro ao carregar dados.</p>
+          )}
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+
+================
+ARQUIVO: styles.module.scss
+================
+
+.overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7); /* Fundo escuro transparente */
+  backdrop-filter: blur(4px); /* Efeito de vidro */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  animation: fadeIn 0.2s;
+}
+
+.modal {
+  background-color: var(--card-bg);
+  width: 100%;
+  max-width: 600px;
+  border-radius: 24px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+  overflow: hidden;
+  position: relative;
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh; /* NÃ£o deixa ultrapassar a tela */
+}
+
+/* HEADER */
+.header {
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.titleArea {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+
+  .icon {
+    width: 50px; height: 50px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center; justify-content: center;
+    font-size: 1.8rem;
+  }
+
+  h2 { margin: 0; font-size: 1.4rem; color: var(--text-primary); }
+  span { font-size: 0.9rem; color: var(--text-secondary); }
+}
+
+.closeBtn {
+  background: none; border: none;
+  font-size: 1.5rem; color: var(--text-secondary);
+  cursor: pointer; padding: 8px;
+  &:hover { color: var(--text-primary); }
+}
+
+/* CONTEÃšDO COM SCROLL */
+.content {
+  padding: 24px;
+  overflow-y: auto;
+}
+
+/* KPIS */
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 30px;
+
+  @media(max-width: 500px) { grid-template-columns: 1fr; }
+}
+
+.kpiCard {
+  background-color: var(--bg-color);
+  padding: 12px;
+  border-radius: 12px;
+  text-align: center;
+  
+  .label { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px; display: block; }
+  .value { font-size: 1.1rem; font-weight: bold; color: var(--text-primary); }
+  
+  &.highlight .value { color: #ef4444; } /* Destaque para gastos */
+}
+
+/* GRÃFICO */
+.chartSection {
+  margin-bottom: 30px;
+  h3 { font-size: 1rem; color: var(--text-primary); margin-bottom: 16px; }
+}
+
+.chartContainer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 180px; /* Aumentei um pouco a altura total */
+  gap: 4px;
+  padding-bottom: 25px; /* EspaÃ§o para as datas em baixo */
+  padding-top: 25px;    /* EspaÃ§o para os valores em cima */
+}
+
+.barWrapper {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  position: relative;
+}
+
+.bar {
+  width: 100%;
+  max-width: 24px; /* Barras um pouco mais gordinhas */
+  border-radius: 4px 4px 0 0;
+  transition: height 0.5s ease-out;
+  min-height: 4px;
+  opacity: 0.8;
+  
+  &:hover { opacity: 1; }
+}
+
+/* O VALOR NO TOPO DA BARRA */
+.barValue {
+  position: absolute;
+  bottom: 100%; /* Cola no topo da barra */
+  margin-bottom: 4px; /* Um respiro */
+  font-size: 0.7rem;  /* Fonte pequena para caber */
+  font-weight: bold;
+  color: var(--text-primary);
+  white-space: nowrap;
+  
+  /* Centraliza perfeitamente */
+  left: 50%;
+  transform: translateX(-50%); 
+}
+
+.monthLabel {
+  position: absolute;
+  bottom: -25px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+.tooltip {
+  position: absolute;
+  top: -5px;
+  background: #000;
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+  z-index: 10;
+}
+
+/* LISTA RECENTE */
+.listSection {
+  h3 { font-size: 1rem; color: var(--text-primary); margin-bottom: 12px; }
+}
+
+.transactionItem {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.95rem;
+
+  .tDate { color: var(--text-secondary); font-size: 0.85rem; margin-right: 8px; }
+  .tVal { font-weight: bold; color: #ef4444; }
+  &:last-child { border: none; }
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+
+================
+ARQUIVO: index.tsx
+================
+
+'use client'
+
+import { useState } from 'react';
+import styles from './styles.module.scss';
+
+// Lista de cores prÃ©-definidas (Tailwind colors)
+const COLORS = [
+  '#ef4444', // Red
+  '#f97316', // Orange
+  '#f59e0b', // Amber
+  '#10b981', // Emerald
+  '#06b6d4', // Cyan
+  '#3b82f6', // Blue
+  '#6366f1', // Indigo
+  '#8b5cf6', // Violet
+  '#ec4899', // Pink
+  '#64748b', // Slate
+];
+
+interface Props {
+  name: string;
+  label: string;
+  initialValue?: string;
+}
+
+export function ColorPicker({ name, label, initialValue }: Props) {
+  const [selected, setSelected] = useState(initialValue || COLORS[0]);
+
+  return (
+    <div className={styles.container}>
+      <span className={styles.label}>{label}</span>
+      
+      {/* O Input Escondido para o FormulÃ¡rio */}
+      <input type="hidden" name={name} value={selected} />
+
+      <div className={styles.grid}>
+        {COLORS.map(color => (
+          <div
+            key={color}
+            className={`${styles.colorCircle} ${selected === color ? styles.selected : ''}`}
+            style={{ backgroundColor: color }}
+            onClick={() => setSelected(color)}
+            title={color}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
+================
+ARQUIVO: styles.module.scss
+================
+
+.container {
+  margin-bottom: 16px;
+}
+
+.label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.grid {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.colorCircle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.2s, border-color 0.2s;
+
+  &:hover {
+    transform: scale(1.1);
+  }
+
+  &.selected {
+    border-color: var(--text-primary); /* Borda de destaque */
+    transform: scale(1.2);
+    box-shadow: 0 0 10px rgba(0,0,0,0.2);
+  }
+}
+
+
+================
+ARQUIVO: index.tsx
+================
+
+'use client'
+
+import { useState, useRef, useEffect } from 'react';
+import styles from './styles.module.scss';
+
+interface Option {
+  value: string;
+  label: string;
+  icon?: string | null;
+}
+
+interface CustomSelectProps {
+  name: string;
+  label?: string; // Deixei opcional caso queira usar sem label visÃ­vel
+  options: Option[];
+  placeholder?: string;
+  initialValue?: string;
+  onChange?: (value: string) => void; // <--- NOVO: Para avisar quando mudar!
+}
+
+export function CustomSelect({ 
+  name, 
+  label, 
+  options, 
+  placeholder = "Selecione...", 
+  initialValue = "",
+  onChange // <--- Recebendo a funÃ§Ã£o
+}: CustomSelectProps) {
+  
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedVal, setSelectedVal] = useState(initialValue);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const selectedOption = options.find(opt => opt.value === selectedVal);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // FunÃ§Ã£o para tratar a seleÃ§Ã£o
+  const handleSelect = (newValue: string) => {
+    setSelectedVal(newValue);
+    setIsOpen(false);
+    
+    // Se passaram uma funÃ§Ã£o de onChange, chamamos ela agora!
+    if (onChange) {
+      onChange(newValue);
+    }
+  };
+
+  return (
+    <div className={styles.container} ref={containerRef}>
+      {label && <span className={styles.label}>{label}</span>}
+
+      <input type="hidden" name={name} value={selectedVal} />
+
+      <button 
+        type="button" 
+        className={styles.trigger} 
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {selectedOption ? (
+            <>
+              {selectedOption.icon && <span>{selectedOption.icon}</span>}
+              {selectedOption.label}
+            </>
+          ) : (
+            <span style={{ color: 'var(--text-secondary)' }}>{placeholder}</span>
+          )}
+        </span>
+        <span className={styles.arrow}>{isOpen ? 'â–²' : 'â–¼'}</span>
+      </button>
+
+      {isOpen && (
+        <div className={styles.dropdown}>
+          {options.map(option => (
+            <div
+              key={option.value}
+              className={`${styles.option} ${option.value === selectedVal ? styles.selected : ''}`}
+              onClick={() => handleSelect(option.value)} // Usamos a nova funÃ§Ã£o
+            >
+              {option.icon && <span>{option.icon}</span>}
+              {option.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+================
+ARQUIVO: styles.module.scss
+================
+
+.container {
+  position: relative; /* Para o menu flutuante se posicionar em relaÃ§Ã£o a isto */
+  width: 100%;
+}
+
+.label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.trigger {
+  width: 100%;
+  padding: 12px;
+  background-color: var(--bg-color); /* Fundo reativo ao tema */
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 1rem;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: border-color 0.2s;
+
+  &:hover {
+    border-color: #3b82f6;
+  }
+}
+
+.dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background-color: var(--card-bg); /* Fundo do menu (pode ser card-bg para destacar) */
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 100; /* Garante que fica por cima de tudo */
+  max-height: 250px;
+  overflow-y: auto; /* Barra de rolagem se tiver muitos itens */
+}
+
+.option {
+  padding: 10px 12px;
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  &:hover {
+    background-color: var(--bg-color); /* Efeito hover */
+  }
+
+  &.selected {
+    background-color: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+    font-weight: bold;
+  }
+}
+
+.arrow {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+
+================
+ARQUIVO: index.tsx
+================
+
+'use client'
+
+import { useState } from 'react'
+import { deleteTransaction } from '@/app/actions/transactions'
+import styles from './styles.module.scss'
+
+interface DeleteButtonProps {
+  transactionId: string
+  installmentId: string | null // Se for null, nÃ£o Ã© parcelado
+}
+
+export function DeleteButton({ transactionId, installmentId }: DeleteButtonProps) {
+  const [showModal, setShowModal] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  // FunÃ§Ã£o disparada ao clicar na lixeira
+  const handleClick = (e: React.FormEvent) => {
+    e.preventDefault() // NÃ£o envia o form ainda
+    
+    if (installmentId) {
+      // Se tem parcelas, pergunta o que fazer
+      setShowModal(true)
+    } else {
+      // Se Ã© Ãºnica, manda bala
+      handleDelete('single')
+    }
+  }
+
+  // FunÃ§Ã£o que realmente chama a Server Action
+  const handleDelete = async (mode: 'single' | 'all') => {
+    setIsDeleting(true)
+    
+    // Precisamos criar um FormData manual para chamar a action
+    const formData = new FormData()
+    formData.append('id', transactionId)
+    formData.append('deleteMode', mode)
+
+    await deleteTransaction(formData)
+    
+    setIsDeleting(false)
+    setShowModal(false)
+  }
+
+  return (
+    <>
+      <button 
+        onClick={handleClick} 
+        className={styles.deleteBtn} 
+        title="Excluir"
+        disabled={isDeleting}
+      >
+        {isDeleting ? '...' : 'ðŸ—‘ï¸'}
+      </button>
+
+      {/* MODAL DE CONFIRMAÃ‡ÃƒO */}
+      {showModal && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modal}>
+            <h3>Excluir Parcelamento?</h3>
+            <p>Esta transaÃ§Ã£o faz parte de um grupo de parcelas.</p>
+            
+            <div className={styles.actions}>
+              <button 
+                className={styles.btnAll} 
+                onClick={() => handleDelete('all')}
+              >
+                Apagar TODAS as parcelas
+              </button>
+              
+              <button 
+                className={styles.btnSingle} 
+                onClick={() => handleDelete('single')}
+              >
+                Apagar apenas ESTA (deste mÃªs)
+              </button>
+
+              <button 
+                className={styles.btnCancel} 
+                onClick={() => setShowModal(false)}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+
+================
+ARQUIVO: styles.module.scss
+================
+
+.deleteBtn {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 6px;
+  transition: all 0.2s;
+  font-size: 1.2rem;
+  
+  &:hover {
+    background-color: #2a1215;
+    color: #ef4444;
+  }
+}
+
+.modalOverlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(2px);
+}
+
+.modal {
+  background: #1e293b;
+  padding: 24px;
+  border-radius: 12px;
+  border: 1px solid #334155;
+  width: 90%;
+  max-width: 400px;
+  color: white;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+  text-align: center;
+
+  h3 { margin-top: 0; margin-bottom: 10px; font-size: 1.2rem; }
+  p { color: #94a3b8; margin-bottom: 24px; font-size: 0.9rem; }
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  button {
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    
+    &:hover { opacity: 0.9; }
+  }
+}
+
+.btnAll { background: #ef4444; color: white; } /* Vermelho */
+.btnSingle { background: #334155; color: #e2e8f0; } /* Cinza */
+.btnCancel { background: transparent; color: #64748b; margin-top: 5px; }
+
+
+================
+ARQUIVO: index.tsx
+================
+
+'use client'
+
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import styles from './styles.module.scss'; // <--- Importando o SCSS
+
+interface Transaction {
+  amount: number | any;
+  type: string;
+  category?: {
+    name: string;
+    color?: string | null;
+  } | null;
+}
+
+interface Props {
+  transactions: Transaction[];
+}
+
+export function ExpenseChart({ transactions }: Props) {
+  // 1. Filtrar apenas DESPESAS
+  const expenses = transactions.filter(t => t.type === 'expense');
+
+  // 2. Agrupar por Categoria
+  const dataMap = expenses.reduce((acc, curr) => {
+    const catName = curr.category?.name || 'Outros';
+    const catColor = curr.category?.color || '#94a3b8';
+    
+    if (!acc[catName]) {
+      acc[catName] = { name: catName, value: 0, color: catColor };
+    }
+    
+    acc[catName].value += Math.abs(Number(curr.amount));
+    return acc;
+  }, {} as Record<string, { name: string, value: number, color: string }>);
+
+  const data = Object.values(dataMap);
+
+  // Estado Vazio
+  if (data.length === 0) {
+    return (
+      <div className={styles.emptyContainer}>
+        Sem despesas para exibir no grÃ¡fico. ðŸ‘
+      </div>
+    )
+  }
+
+  return (
+    <div className={styles.container}>
+      <h3 className={styles.title}>
+        Gastos do MÃªs por Categoria
+      </h3>
+
+      <ResponsiveContainer width="100%" height="90%">
+        <PieChart>
+          <Pie
+            data={data}
+            cx="50%"
+            cy="50%"
+            innerRadius={60}
+            outerRadius={80}
+            paddingAngle={5}
+            dataKey="value"
+          >
+            {data.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.color} stroke="var(--card-bg)" strokeWidth={2} />
+            ))}
+          </Pie>
+          
+          {/* O Tooltip precisa de estilos inline para o objeto interno da lib, 
+              mas usamos as variÃ¡veis CSS para manter o tema */}
+          <Tooltip 
+            // CORREÃ‡ÃƒO AQUI: Mudamos de (value: number) para (value: any)
+            formatter={(value: any) => `R$ ${Number(value).toFixed(2)}`}
+            contentStyle={{ 
+              backgroundColor: 'var(--card-bg)', 
+              borderColor: 'var(--border-color)', 
+              color: 'var(--text-primary)',
+              borderRadius: '8px' 
+            }}
+            itemStyle={{ color: 'var(--text-primary)' }}
+          />
+          
+          <Legend verticalAlign="bottom" height={36} wrapperStyle={{ paddingTop: '10px' }}/>
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+
+================
+ARQUIVO: styles.module.scss
+================
+
+.container {
+  background-color: var(--card-bg);
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid var(--border-color);
+  height: 380px; /* Altura fixa para o grÃ¡fico */
+  margin-top: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.title {
+  margin: 0 0 10px 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-align: center;
+}
+
+.emptyContainer {
+  height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  border: 1px dashed var(--border-color);
+  border-radius: 16px;
+  background-color: var(--card-bg);
+  margin-top: 24px;
+}
+
+
+================
+ARQUIVO: index.tsx
+================
+
+'use client'
+
+import { useState, useRef, useEffect } from 'react';
+import styles from './styles.module.scss';
+
+// Ãcones mais comuns para facilitar a vida do usuÃ¡rio
+const PRESETS = [
+  'ðŸ ', 'ðŸ”', 'ðŸš—', 'ðŸŽ®', 'ðŸ’Š', 
+  'ðŸ’°', 'ðŸŽ“', 'âœˆï¸', 'ðŸ›’', 'ðŸ”§', 
+  'ðŸ’¡', 'ðŸ¾', 'ðŸ‹ï¸', 'ðŸ‘™', 'ðŸ’¼'
+];
+
+interface Props {
+  name: string;
+  label: string;
+  initialValue?: string;
+}
+
+export function IconPicker({ name, label, initialValue }: Props) {
+  // Se o valor inicial nÃ£o estiver na lista, assumimos que Ã© um customizado
+  const isInitialCustom = initialValue && !PRESETS.includes(initialValue);
+  
+  const [selected, setSelected] = useState(initialValue || PRESETS[0]);
+  const [showCustomInput, setShowCustomInput] = useState(!!isInitialCustom);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Quando clicar no "+", foca no input automaticamente
+  useEffect(() => {
+    if (showCustomInput && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [showCustomInput]);
+
+  const handlePresetClick = (icon: string) => {
+    setSelected(icon);
+    setShowCustomInput(false); // Esconde o input se escolher um da lista
+  };
+
+  const handleCustomClick = () => {
+    setShowCustomInput(true);
+    setSelected(''); // Limpa a seleÃ§Ã£o visual para focar no input
+  };
+
+  return (
+    <div className={styles.container}>
+      <span className={styles.label}>{label}</span>
+      
+      {/* O Input Escondido que envia o dado real para o Server Action */}
+      <input type="hidden" name={name} value={selected} />
+
+      <div className={styles.grid}>
+        {/* Lista de Ãcones Prontos */}
+        {PRESETS.map(icon => (
+          <button
+            key={icon}
+            type="button"
+            className={`${styles.iconBtn} ${selected === icon ? styles.selected : ''}`}
+            onClick={() => handlePresetClick(icon)}
+          >
+            {icon}
+          </button>
+        ))}
+
+        {/* BotÃ£o de "Mais" (+) */}
+        <button
+          type="button"
+          className={`${styles.iconBtn} ${styles.addBtn} ${showCustomInput ? styles.selected : ''}`}
+          onClick={handleCustomClick}
+          title="Outro Ã­cone"
+        >
+          âž•
+        </button>
+      </div>
+
+      {/* Input que aparece sÃ³ quando clica no + */}
+      {showCustomInput && (
+        <div className={styles.customInputWrapper}>
+          <label>Digite ou pressione <b>Win + .</b> (Ponto)</label>
+          <input 
+            ref={inputRef}
+            type="text" 
+            placeholder="Cole seu emoji aqui..."
+            maxLength={2} // Limita a 1 ou 2 caracteres (emojis as vezes ocupam 2)
+            value={selected}
+            onChange={(e) => setSelected(e.target.value)}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+================
+ARQUIVO: styles.module.scss
+================
+
+.container {
+  margin-bottom: 16px;
+}
+
+.label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(45px, 1fr));
+  gap: 8px;
+  background: var(--bg-color);
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.iconBtn {
+  width: 100%;
+  aspect-ratio: 1; /* Garante que fique quadrado */
+  font-size: 1.5rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  color: var(--text-primary);
+
+  &:hover {
+    background-color: var(--card-bg);
+    transform: scale(1.05);
+  }
+
+  &.selected {
+    background-color: rgba(59, 130, 246, 0.1);
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 1px #3b82f6;
+  }
+}
+
+/* BotÃ£o de "Mais" (+) */
+.addBtn {
+  border: 2px dashed var(--border-color);
+  color: var(--text-secondary);
+  
+  &:hover {
+    border-color: #3b82f6;
+    color: #3b82f6;
+    background-color: transparent;
+  }
+}
+
+/* Ãrea do Input Customizado */
+.customInputWrapper {
+  margin-top: 12px;
+  animation: fadeIn 0.3s;
+  
+  label {
+    font-size: 0.75rem;
+    color: #3b82f6;
+    margin-bottom: 4px;
+    display: block;
+  }
+
+  input {
+    width: 100%;
+    padding: 10px;
+    text-align: center;
+    font-size: 1.5rem;
+    border: 2px solid #3b82f6; /* Borda azul para indicar foco */
+    border-radius: 8px;
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    outline: none;
+
+    &::placeholder {
+      font-size: 0.9rem;
+      opacity: 0.6;
+    }
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+
+================
+ARQUIVO: index.tsx
+================
+
+'use client'
+
+import { useState, useEffect, useRef } from 'react'
+import styles from './styles.module.scss'
+
+interface MonthPickerPopupProps {
+  selectedYear: number
+  selectedMonth: number
+  onSelect: (month: number, year: number) => void
+  onClose: () => void
+}
+
+export function MonthPickerPopup({ selectedYear, selectedMonth, onSelect, onClose }: MonthPickerPopupProps) {
+  const [browsingYear, setBrowsingYear] = useState(selectedYear)
+  const popupRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setBrowsingYear(selectedYear)
+  }, [selectedYear])
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (popupRef.current && !popupRef.current.contains(event.target as Node)) {
+        onClose()
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [onClose])
+
+  const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
+
+  return (
+    <div ref={popupRef} className={styles.popupContainer}>
+      {/* CabeÃ§alho: Navegar Anos */}
+      <div className={styles.header}>
+        <button onClick={() => setBrowsingYear(browsingYear - 1)} className={styles.navBtn}>
+          â—€â—€
+        </button>
+        <span>{browsingYear}</span>
+        <button onClick={() => setBrowsingYear(browsingYear + 1)} className={styles.navBtn}>
+          â–¶â–¶
+        </button>
+      </div>
+
+      {/* Grid de Meses */}
+      <div className={styles.grid}>
+        {months.map((monthName, index) => {
+          const isSelected = index === selectedMonth && browsingYear === selectedYear
+          
+          return (
+            <button
+              key={monthName}
+              onClick={() => onSelect(index, browsingYear)}
+              className={`${styles.monthBtn} ${isSelected ? styles.selected : ''}`}
+            >
+              {monthName}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+
+================
+ARQUIVO: styles.module.scss
+================
+
+.popupContainer {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 0.5rem;
+  
+  /* Cores dinÃ¢micas */
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  
+  border-radius: 0.75rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  padding: 1rem;
+  z-index: 50;
+  width: 280px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+
+  span {
+    font-weight: 700;
+    color: var(--text-primary);
+    font-size: 1.125rem;
+  }
+}
+
+.navBtn {
+  padding: 0.25rem;
+  color: var(--text-secondary);
+  border-radius: 0.25rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    color: var(--text-primary);
+    background-color: var(--hover-bg);
+  }
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.monthBtn {
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  color: var(--text-secondary);
+  background: transparent;
+
+  &:hover {
+    background-color: var(--hover-bg);
+    color: var(--text-primary);
+  }
+
+  &.selected {
+    background-color: var(--accent); /* Cor de destaque (Azul/Roxo) */
+    color: #fff; /* Texto sempre branco no destaque */
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+}
+
+
+================
+ARQUIVO: index.tsx
+================
+
+'use client'
+
+import { format, addMonths, subMonths } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useState } from 'react'
+import { MonthPickerPopup } from '../MonthPickerPopup' // Importando da pasta vizinha
+import styles from './styles.module.scss'
+
+export function MonthSelector() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [isOpen, setIsOpen] = useState(false)
+
+  // 1. Ler dados da URL
+  const currentMonth = searchParams.get('month') 
+    ? Number(searchParams.get('month')) 
+    : new Date().getMonth()
+    
+  const currentYear = searchParams.get('year') 
+    ? Number(searchParams.get('year')) 
+    : new Date().getFullYear()
+
+  const selectedDate = new Date(currentYear, currentMonth, 1)
+
+  // 2. FunÃ§Ãµes de AÃ§Ã£o
+  const updateUrl = (month: number, year: number) => {
+    const url = `/?month=${month}&year=${year}`
+    router.push(url)
+    setIsOpen(false)
+  }
+
+  const changeMonthArrow = (offset: number) => {
+    const newDate = offset > 0 ? addMonths(selectedDate, 1) : subMonths(selectedDate, 1)
+    updateUrl(newDate.getMonth(), newDate.getFullYear())
+  }
+
+  return (
+    <div className={styles.container}>
+      
+      {/* Barra Principal */}
+      <div className={styles.bar}>
+        <button onClick={() => changeMonthArrow(-1)} className={styles.arrowBtn}>
+          â—€
+        </button>
+        
+        <button onClick={() => setIsOpen(!isOpen)} className={styles.mainLabel}>
+          {format(selectedDate, 'MMMM yyyy', { locale: ptBR })}
+        </button>
+
+        <button onClick={() => changeMonthArrow(1)} className={styles.arrowBtn}>
+          â–¶
+        </button>
+      </div>
+
+      {/* Popup Condicional */}
+      {isOpen && (
+        <MonthPickerPopup 
+          selectedYear={currentYear}
+          selectedMonth={currentMonth}
+          onSelect={updateUrl}
+          onClose={() => setIsOpen(false)}
+        />
+      )}
+
+    </div>
+  )
+}
+
+
+================
+ARQUIVO: styles.module.scss
+================
+
+.container {
+  position: relative;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  /* MUDANÃ‡A AQUI: Cores dinÃ¢micas */
+  background-color: var(--card-bg); 
+  border: 1px solid var(--border-color);
+  padding: 0.25rem;
+  border-radius: 0.5rem;
+  transition: background-color 0.3s, border-color 0.3s;
+}
+
+.arrowBtn {
+  padding: 0.5rem;
+  color: var(--text-secondary); /* Cinza adaptÃ¡vel */
+  border-radius: 0.375rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    color: var(--text-primary);
+    background-color: var(--hover-bg);
+  }
+}
+
+.mainLabel {
+  font-weight: 700;
+  color: var(--text-primary); /* Texto principal (Preto no claro, Branco no escuro) */
+  text-transform: capitalize;
+  min-width: 140px;
+  text-align: center;
+  padding: 0.5rem 0;
+  border-radius: 0.375rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: var(--hover-bg);
+  }
+}
+
+
+================
+ARQUIVO: index.tsx
+================
+
+'use client'
+
+import { useState } from 'react';
+import { generateRecurringTransactions } from '@/app/actions/recurring';
+import styles from './styles.module.scss';
+
+interface RecurringExpense {
+  id: string;
+  description: string;
+  amount: number; // Agora jÃ¡ vem como number limpo
+  day: number;
+}
+
+interface Props {
+  pendingExpenses: RecurringExpense[];
+  currentMonth: number;
+  currentYear: number;
+}
+
+export function RecurringAlert({ pendingExpenses, currentMonth, currentYear }: Props) {
+  const [isVisible, setIsVisible] = useState(true);
+  
+  // Estado para guardar quais itens estÃ£o selecionados (comeÃ§a com TODOS selecionados)
+  const [selectedIds, setSelectedIds] = useState<string[]>(
+    pendingExpenses.map(p => p.id)
+  );
+
+  if (!isVisible || pendingExpenses.length === 0) return null;
+
+  // FunÃ§Ã£o para marcar/desmarcar
+  const toggleSelection = (id: string) => {
+    if (selectedIds.includes(id)) {
+      setSelectedIds(selectedIds.filter(item => item !== id));
+    } else {
+      setSelectedIds([...selectedIds, id]);
+    }
+  };
+
+  return (
+    <div className={styles.container}>
+      
+      <div className={styles.header}>
+        <h3 className={styles.title}>ðŸ”” LanÃ§amentos Pendentes</h3>
+        <button onClick={() => setIsVisible(false)} className={styles.closeBtn}>&times;</button>
+      </div>
+
+      <p className={styles.description}>
+        Selecione as despesas fixas para lanÃ§ar neste mÃªs:
+      </p>
+
+      {/* LISTA DE SELEÃ‡ÃƒO */}
+      <div className={styles.list}>
+        {pendingExpenses.map(item => (
+          <div 
+            key={item.id} 
+            className={styles.listItem} 
+            onClick={() => toggleSelection(item.id)} // Clicar na linha tambÃ©m seleciona
+          >
+            <input 
+              type="checkbox" 
+              className={styles.checkbox}
+              checked={selectedIds.includes(item.id)}
+              readOnly // Controlado pelo onClick da div pai para melhor UX
+            />
+            <div className={styles.itemInfo}>
+              <span>{item.day} - {item.description}</span>
+              <span>R$ {item.amount.toFixed(2)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <form action={async (formData) => {
+          await generateRecurringTransactions(formData);
+          // Oculta o alerta se lanÃ§ou tudo. 
+          // Se lanÃ§ou sÃ³ alguns, a lÃ³gica da Home vai recarregar e mostrar o alerta de novo com o que sobrou.
+          setIsVisible(false); 
+      }}>
+        {/* Passamos APENAS os IDs que estÃ£o no estado 'selectedIds' */}
+        <input type="hidden" name="ids" value={JSON.stringify(selectedIds)} />
+        <input type="hidden" name="month" value={currentMonth} />
+        <input type="hidden" name="year" value={currentYear} />
+        
+        <button 
+          type="submit" 
+          className={styles.actionBtn}
+          disabled={selectedIds.length === 0} // Desabilita se nÃ£o tiver nada selecionado
+        >
+          {selectedIds.length === 0 
+            ? "Selecione pelo menos uma" 
+            : `LanÃ§ar ${selectedIds.length} Itens Selecionados`}
+        </button>
+      </form>
+
+    </div>
+  );
+}
+
+
+================
+ARQUIVO: styles.module.scss
+================
+
+.container {
+  background-color: var(--card-bg);
+  border: 1px solid #3b82f6; /* Borda Azul para destaque */
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+  animation: slideIn 0.3s ease-out;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.title {
+  margin: 0;
+  font-size: 1rem;
+  color: #3b82f6;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1.5rem;
+  line-height: 0;
+  padding: 4px;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+  }
+}
+
+.text {
+  margin: 0 0 16px 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+
+  strong {
+    color: var(--text-primary);
+  }
+}
+
+.description {
+  margin: 0 0 16px 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+/* NOVO: Estilo da lista de seleÃ§Ã£o */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.listItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  background-color: var(--bg-color); /* Leve destaque */
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: border-color 0.2s;
+
+  &:hover {
+    border-color: #3b82f6;
+  }
+}
+
+.checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: #3b82f6;
+  cursor: pointer;
+}
+
+.itemInfo {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  
+  span:last-child {
+    font-weight: bold;
+    color: var(--text-secondary);
+  }
+}
+
+.actionBtn {
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  width: 100%;
+  font-size: 0.95rem;
+  transition: opacity 0.2s;
+
+  &:hover { opacity: 0.9; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+
+================
+ARQUIVO: index.tsx
+================
+
+'use client'
+
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { useTheme } from 'next-themes' // <--- Importante
+import { useEffect, useState } from 'react'
+import styles from './styles.module.scss'
+
+export function Sidebar() {
+  const pathname = usePathname()
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
+  // Evita erro de hidrataÃ§Ã£o (renderizar Ã­cone errado no servidor)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const mainItems = [
+    { name: 'Dashboard', path: '/', icon: 'âŠž' },
+    { name: 'Minhas Contas', path: '/accounts', icon: 'ðŸ’³' },
+  ]
+
+  const manageItems = [
+    { name: 'Nova TransaÃ§Ã£o', path: '/transactions/new', icon: 'âš¡' },
+    { name: 'Categorias', path: '/categories', icon: 'ðŸ·ï¸' },
+    { name: 'Despesas Fixas', path: '/recurring', icon: 'ðŸ”„' },
+  ]
+
+  const renderLink = (item: any) => {
+    const isActive = pathname === item.path
+    return (
+      <Link key={item.path} href={item.path} className={`${styles.link} ${isActive ? styles.active : ''}`}>
+        <span>{item.icon}</span>
+        {item.name}
+      </Link>
+    )
+  }
+
+  // FunÃ§Ã£o para alternar o tema
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark')
+  }
+
+  return (
+    <aside className={styles.sidebar}>
+      <div className={styles.logoHeader}>
+        <div className={styles.logoIcon}>F</div>
+        <span>FinControl</span>
+      </div>
+
+      <div className={styles.workspaceCard}>
+        <div style={{width: 32, height: 32, borderRadius: '50%', background: '#cbd5e1', display:'flex', alignItems:'center', justifyContent:'center'}}>ðŸ‘¤</div>
+        <div className={styles.info}>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}></span>
+          <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>Bernardo Kanekiyo</span>
+        </div>
+      </div>
+
+      <nav style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
+        {mainItems.map(item => renderLink(item))}
+        
+        <div className={styles.sectionTitle} style={{ marginTop: 20 }}>MENU</div>
+        {manageItems.map(item => renderLink(item))}
+      </nav>
+
+      <div className={styles.footer}>
+        {/* BOTÃƒO DE TEMA */}
+        {mounted && (
+          <button onClick={toggleTheme} className={styles.themeToggle}>
+            {theme === 'dark' ? 'â˜€ï¸ Modo Claro' : 'ðŸŒ™ Modo Escuro'}
+          </button>
+        )}
+
+        <Link href="/settings" className={styles.link}>
+          <span>âš™ï¸</span> ConfiguraÃ§Ãµes
+        </Link>
+      </div>
+    </aside>
+  )
+}
+
+
+================
+ARQUIVO: styles.module.scss
+================
+
+.sidebar {
+  width: 280px;
+  /* AQUI MUDOU: Usamos var() para pegar a cor do tema atual */
+  background-color: var(--sidebar-bg); 
+  border-right: 1px solid var(--sidebar-border);
+  
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  transition: background-color 0.3s, border-color 0.3s;
+}
+
+.logoHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 32px;
+  color: var(--text-primary); /* VariÃ¡vel */
+  font-weight: 700;
+  font-size: 1.25rem;
+
+  .logoIcon {
+    width: 32px;
+    height: 32px;
+    background: var(--accent); /* VariÃ¡vel */
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+  }
+}
+
+.workspaceCard {
+  background-color: var(--background); /* VariÃ¡vel */
+  border: 1px solid var(--sidebar-border); /* VariÃ¡vel */
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 32px;
+  cursor: pointer;
+  
+  .info .value { color: var(--text-primary); }
+}
+
+.sectionTitle {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  padding-left: 12px;
+}
+
+.link {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: var(--text-secondary); /* VariÃ¡vel */
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.2s;
+
+  &:hover {
+    background-color: var(--hover-bg); /* VariÃ¡vel */
+    color: var(--text-primary);
+  }
+
+  &.active {
+    background-color: rgba(99, 102, 241, 0.1);
+    color: var(--accent);
+    
+    span { color: var(--accent); }
+  }
+}
+
+.badge {
+  margin-left: auto;
+  background-color: var(--accent);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+}
+
+.footer {
+  margin-top: auto;
+  border-top: 1px solid var(--sidebar-border);
+  padding-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Estilo do BotÃ£o de Tema */
+.themeToggle {
+  background: var(--background);
+  border: 1px solid var(--sidebar-border);
+  color: var(--text-primary);
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.2s;
+
+  &:hover {
+    background: var(--hover-bg);
+  }
+}
+
+
+================
+ARQUIVO: index.tsx
+================
+
+'use client'
+
+import { toggleTransactionStatus } from "@/app/actions/transactions"
+import styles from "./styles.module.scss"
+
+interface StatusButtonProps {
+  id: string
+  isPaid: boolean
+}
+
+export function StatusButton({ id, isPaid }: StatusButtonProps) {
+  
+  const handleClick = async () => {
+    // 1. Criamos o "envelope" (FormData)
+    const formData = new FormData()
+    
+    // 2. Colocamos os dados dentro dele
+    formData.append('id', id)
+    formData.append('isPaid', String(isPaid)) // Convertemos boolean para string
+    
+    // 3. Enviamos o envelope para a Server Action
+    await toggleTransactionStatus(formData)
+  }
+
+  return (
+    <button 
+      onClick={handleClick}
+      className={`${styles.btnCheck} ${isPaid ? styles.paid : ''}`}
+      title={isPaid ? "Marcar como nÃ£o pago" : "Confirmar pagamento"}
+    >
+      {isPaid ? "âœ”" : "â³"}
+    </button>
+  )
+}
+
+
+================
+ARQUIVO: styles.module.scss
+================
+
+.btnCheck {
+  background: transparent;
+  border: 1px solid #334155;
+  color: #64748b; /* Cinza (Pendente) */
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  font-size: 1rem;
+
+  &:hover {
+    background: #1e293b;
+    border-color: #94a3b8;
+    color: #e2e8f0;
+  }
+
+  &.paid {
+    background: #065f46; /* Fundo Verde Escuro */
+    border-color: #059669;
+    color: #34d399; /* Texto Verde Claro */
+    
+    &:hover {
+      background: #064e3b;
+      color: #ef4444; /* Vira vermelho no hover para indicar "desmarcar" */
+      content: "âœ–"; /* Truque visual (opcional) */
+    }
+  }
+}
+
+
+================
+ARQUIVO: prisma.ts
+================
+
+import { PrismaClient } from '@prisma/client'
+
+const globalForPrisma = global as unknown as { prisma: PrismaClient }
+
+export const prisma = globalForPrisma.prisma || new PrismaClient()
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+
+
+================
+ARQUIVO: theme-provider.tsx
+================
+
+'use client'
+
+import * as React from 'react'
+import { ThemeProvider as NextThemesProvider } from 'next-themes'
+
+export function ThemeProvider({ children, ...props }: React.ComponentProps<typeof NextThemesProvider>) {
+  return <NextThemesProvider {...props}>{children}</NextThemesProvider>
+}

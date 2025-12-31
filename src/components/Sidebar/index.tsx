@@ -23,8 +23,10 @@ export function Sidebar() {
 
   const manageItems = [
     { name: 'Nova Transação', path: '/transactions/new', icon: '⚡' },
+    { name: 'Transferência', path: '/transfers/new', icon: '💸' },
     { name: 'Categorias', path: '/categories', icon: '🏷️' },
     { name: 'Despesas Fixas', path: '/recurring', icon: '🔄' },
+    { name: 'Simulador', path: '/projections', icon: '🔮' },
   ]
 
   const renderLink = (item: any) => {
