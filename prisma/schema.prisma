@@ -27,8 +27,13 @@ model Category {
   name         String
   icon         String?       // Podemos salvar um emoji ou nome de icone aqui
   color        String?       // Ex: "#FF0000"
+  isThirdParty Boolean @default(false)
+
   transactions Transaction[]
   recurringExpenses RecurringExpense[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 }
 
 // 3. Transações (Onde tudo acontece)
@@ -41,7 +46,7 @@ model Transaction {
   isPaid           Boolean @default(true)  // true = Realizado, false = Planejado/Opcional
   installmentId    String?                 // ID único para agrupar as parcelas (ex: uuid da compra)
   installmentLabel String?                 // Texto bonitinho: "1/10", "2/10"
-
+  isReimbursed     Boolean   @default(false)
 
   category    Category? @relation(fields: [categoryId], references: [id])
   categoryId  String?

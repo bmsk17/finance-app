@@ -4,30 +4,32 @@ import { AccountGrid } from "./AccountGrid"
 import styles from "../categories/page.module.scss" 
 
 export default async function AccountsPage() {
+  const today = new Date(); // Definimos o marco temporal "agora"
+
   const data = await prisma.account.findMany({
     orderBy: { name: 'asc' },
     include: {
       transactions: {
+        // --- O FILTRO QUE FALTAVA ---
+        where: {
+          isPaid: true,
+          date: { lte: today } // "lte" significa "less than or equal" (menor ou igual a hoje)
+        },
         select: { amount: true, type: true }
       }
     }
   })
 
-  // CÁLCULO BLINDADO 🛡️
   const accounts = data.map(acc => {
-    
-    // 1. Receitas: Garantimos que o número é positivo com Math.abs
+    // Agora o totalIncome e totalExpense só somam o que já passou por conta do filtro acima
     const totalIncome = acc.transactions
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
 
-    // 2. Despesas: Garantimos que o número é positivo para poder SUBTRAIR depois
     const totalExpense = acc.transactions
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
 
-    // 3. A Matemática final
-    // Saldo Inicial (Banco) + Entradas - Saídas
     const currentBalance = Number(acc.balance) + totalIncome - totalExpense;
 
     return {

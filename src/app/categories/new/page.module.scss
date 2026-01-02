@@ -72,3 +72,47 @@
   
   &:hover { color: var(--text-primary); text-decoration: underline; }
 }
+.checkboxGroup {
+  display: flex;
+  align-items: flex-start; // Alinha pelo topo se o texto for longo
+  gap: 12px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.05); // Um fundo sutil
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  margin-bottom: 24px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+
+  &:hover {
+    border-color: #3b82f6; // Destaque ao passar o mouse
+  }
+
+  input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: #3b82f6; // Cor do check combinando com o projeto
+    margin-top: 2px;
+  }
+
+  .labelContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    label {
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--text-primary);
+      font-size: 0.95rem;
+    }
+
+    p {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin: 0;
+      line-height: 1.4;
+    }
+  }
+}

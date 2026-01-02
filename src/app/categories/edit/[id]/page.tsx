@@ -29,7 +29,7 @@ export default async function EditCategoryPage({ params }: Props) {
       
       <form action={updateCategory} className={styles.form}>
         
-        {/* ID Escondido (Fundamental para o update saber quem atualizar) */}
+        {/* ID Escondido */}
         <input type="hidden" name="id" value={category.id} />
 
         {/* Nome */}
@@ -44,7 +44,7 @@ export default async function EditCategoryPage({ params }: Props) {
           />
         </div>
 
-        {/* Componentes Visuais com Valores Iniciais */}
+        {/* Icon e Color Pickers */}
         <IconPicker 
           name="icon" 
           label="Ícone" 
@@ -56,6 +56,21 @@ export default async function EditCategoryPage({ params }: Props) {
           label="Cor da Categoria" 
           initialValue={category.color || "#3b82f6"}
         />
+
+        {/* --- NOVO: CHECKBOX DE TERCEIROS --- */}
+        <div className={styles.checkboxGroup}>
+          <input 
+            type="checkbox" 
+            name="isThirdParty" 
+            id="isThirdParty" 
+            // O pulo do gato: já vem marcado se for true no banco
+            defaultChecked={category.isThirdParty} 
+          />
+          <div className={styles.labelContainer}>
+            <label htmlFor="isThirdParty">Categoria de Reembolso/Terceiros?</label>
+            <p>Marque se as despesas daqui serão pagas por outra pessoa.</p>
+          </div>
+        </div>
 
         <button type="submit" className={styles.btnSubmit}>
           Salvar Alterações

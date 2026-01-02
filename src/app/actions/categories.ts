@@ -9,6 +9,8 @@ export async function createCategory(formData: FormData) {
   const icon = formData.get("icon") as string
   const color = formData.get("color") as string
 
+  const isThirdParty = formData.get("isThirdParty") === "on"
+
   // Validação: Só o nome é obrigatório para não travar o fluxo.
   // Se o ícone falhar, usamos um padrão.
   if (!name) return;
@@ -20,6 +22,7 @@ export async function createCategory(formData: FormData) {
       icon: icon || "📁", 
       // Se color vier vazio, salva um cinza padrão
       color: color || "#64748b", 
+      isThirdParty,
     },
   })
 
@@ -126,6 +129,7 @@ export async function updateCategory(formData: FormData) {
   const name = formData.get("name") as string
   const icon = formData.get("icon") as string
   const color = formData.get("color") as string
+  const isThirdParty = formData.get("isThirdParty") === "on"
 
   if (!id || !name) return;
 
@@ -135,6 +139,7 @@ export async function updateCategory(formData: FormData) {
       name,
       icon: icon || "📁", 
       color: color || "#64748b", 
+      isThirdParty,
     },
   })
 

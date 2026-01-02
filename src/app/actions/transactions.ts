@@ -215,17 +215,40 @@ export async function deleteTransaction(formData: FormData) {
   const transaction = await prisma.transaction.findUnique({ where: { id } })
   if (!transaction) return;
 
-  // LÓGICA NOVA: Deleção de Transferências em Par (Smart Delete)
+  // --- 1. LÓGICA DE REVERSÃO DE REEMBOLSO (RESOLVE O PROBLEMA DO RAIO ⚡) ---
+  // Se a transação apagada for um "income" (entrada) de uma categoria de terceiros,
+  // precisamos procurar a despesa original e marcar isReimbursed como false.
+  if (transaction.type === 'income' && transaction.categoryId) {
+    const category = await prisma.category.findUnique({ 
+      where: { id: transaction.categoryId } 
+    });
+
+    // Só fazemos o rollback se a categoria for de terceiros (Amanda/Mai)
+    if (category?.isThirdParty) {
+      const originalExpense = await prisma.transaction.findFirst({
+        where: {
+          categoryId: transaction.categoryId,
+          amount: Number(transaction.amount) * -1, // Valor negativo correspondente
+          isReimbursed: true, // Que estava marcada como reembolsada
+        },
+        orderBy: { date: 'desc' }
+      });
+
+      if (originalExpense) {
+        await prisma.transaction.update({
+          where: { id: originalExpense.id },
+          data: { isReimbursed: false } // DEVOLVE O RAIO ⚡ NO PAINEL
+        });
+      }
+    }
+  }
+
+  // --- 2. LÓGICA DE TRANSFERÊNCIAS EM PAR (SEU CÓDIGO ORIGINAL) ---
   const isTransferOut = transaction.description.startsWith("Transf. para:");
   const isTransferIn = transaction.description.startsWith("Receb. de:");
 
   if (isTransferOut || isTransferIn) {
-    // 1. Tenta achar a transação irmã (gêmea)
-    // A irmã tem o mesmo valor (sinal oposto) e a mesma data
-    // Nota: Como não temos ID de vínculo, usamos heurística de valor e data
     const twinAmount = Number(transaction.amount) * -1;
-    
-    // Margem de erro pequena para data (caso tenha milissegundos de diferença)
     const dateStart = new Date(transaction.date); 
     dateStart.setSeconds(dateStart.getSeconds() - 2);
     const dateEnd = new Date(transaction.date);
@@ -233,27 +256,26 @@ export async function deleteTransaction(formData: FormData) {
 
     const twinTransaction = await prisma.transaction.findFirst({
       where: {
-        amount: twinAmount, // Valor invertido
-        date: { gte: dateStart, lte: dateEnd }, // Mesma hora (aprox)
-        // Se eu sou saída, procuro entrada com descrição "Receb. de", e vice-versa
+        amount: twinAmount,
+        date: { gte: dateStart, lte: dateEnd },
         description: {
           startsWith: isTransferOut ? "Receb. de:" : "Transf. para:"
         }
       }
     });
 
-    // 2. Se achou a irmã, apaga as duas numa transação atômica
     if (twinTransaction) {
       await prisma.$transaction([
         prisma.transaction.delete({ where: { id: transaction.id } }),
         prisma.transaction.delete({ where: { id: twinTransaction.id } })
       ]);
       revalidatePath("/");
-      return; // Encerra aqui
+      revalidatePath("/receivables"); // Adicionado para atualizar o painel
+      return;
     }
   }
 
-  // --- LÓGICA ANTIGA (Para transações normais) ---
+  // --- 3. LÓGICA DE EXCLUSÃO SIMPLES OU PARCELADA ---
   if (deleteMode === 'all' && transaction.installmentId) {
     await prisma.transaction.deleteMany({
       where: { installmentId: transaction.installmentId }
@@ -263,6 +285,7 @@ export async function deleteTransaction(formData: FormData) {
   }
 
   revalidatePath("/");
+  revalidatePath("/receivables"); // Garante que o painel de cobranças atualize
 }
 
 /**
@@ -277,7 +300,13 @@ export async function getAccountsAction() {
       where: { 
         accountId: acc.id, 
         isPaid: true, 
-        date: { lte: new Date() } 
+        date: { lte: new Date() },
+        // --- O SEGREDO DA ENGENHARIA ---
+        // Se a despesa foi reembolsada (isReimbursed: true), ela não 
+        // deve mais subtrair do saldo da conta original (ex: Nubank).
+        NOT: {
+          isReimbursed: true
+        }
       }
     });
 
@@ -363,3 +392,4 @@ export async function createTransfer(formData: FormData) {
   revalidatePath("/");
   redirect("/");
 }
+

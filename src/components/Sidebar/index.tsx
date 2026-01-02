@@ -27,6 +27,7 @@ export function Sidebar() {
     { name: 'Categorias', path: '/categories', icon: '🏷️' },
     { name: 'Despesas Fixas', path: '/recurring', icon: '🔄' },
     { name: 'Simulador', path: '/projections', icon: '🔮' },
+    { name: 'Cobranças', path: '/receivables', icon: '👤' },
   ]
 
   const renderLink = (item: any) => {

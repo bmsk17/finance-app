@@ -21,11 +21,11 @@ export default async function Home({
 
   // 1. Recorrências Pendentes
   const pendingRecurringRaw = await checkPendingRecurring(month, year);
-  const pendingRecurring = pendingRecurringRaw.map(item => ({
+  const pendingRecurring = pendingRecurringRaw.map((item) => ({
     id: item.id,
     description: item.description,
     day: item.day,
-    amount: Number(item.amount) 
+    amount: Number(item.amount),
   }));
 
   const startDate = new Date(year, month, 1);
@@ -33,20 +33,25 @@ export default async function Home({
 
   // 2. Cálculo Patrimonial
   const accountsRaw = await prisma.account.findMany();
-  const initialTotalBalance = accountsRaw.reduce((acc, account) => acc + Number(account.balance), 0);
+  const initialTotalBalance = accountsRaw.reduce(
+    (acc, account) => acc + Number(account.balance),
+    0
+  );
 
   const transactionsUntilNow = await prisma.transaction.aggregate({
     _sum: { amount: true },
     where: { isPaid: true, date: { lte: today } },
   });
-  const currentTotalBalance = initialTotalBalance + (Number(transactionsUntilNow._sum.amount) || 0);
+  const currentTotalBalance =
+    initialTotalBalance + (Number(transactionsUntilNow._sum.amount) || 0);
 
   const lastMonthEnd = endOfMonth(subMonths(today, 1));
   const transactionsUntilLastMonth = await prisma.transaction.aggregate({
     _sum: { amount: true },
     where: { isPaid: true, date: { lte: lastMonthEnd } },
   });
-  const lastMonthTotalBalance = initialTotalBalance + (Number(transactionsUntilLastMonth._sum.amount) || 0);
+  const lastMonthTotalBalance =
+    initialTotalBalance + (Number(transactionsUntilLastMonth._sum.amount) || 0);
   const diff = currentTotalBalance - lastMonthTotalBalance;
 
   // 3. Dados das Contas Individuais
@@ -63,6 +68,7 @@ export default async function Home({
       };
     })
   );
+  
 
   // 4. Transações do Mês (DADOS COMPLETOS PARA O CLIENTE FILTRAR)
   const transactions = await prisma.transaction.findMany({
@@ -96,36 +102,56 @@ export default async function Home({
   const categoryStats = expensesGrouped
     .map((stat) => {
       const categoryInfo = allCategories.find((c) => c.id === stat.categoryId);
-      return { 
-        ...categoryInfo, 
-        total: Number(stat._sum.amount) 
+      return {
+        ...categoryInfo,
+        total: Number(stat._sum.amount),
       };
     })
     .sort((a, b) => a.total - b.total)
     .slice(0, 5); // Top 5 gastos
 
-  // 6. KPIs do Mês
+  // 6. KPIs do Mês (Lógica de Reembolso/Terceiros)
+
+  // A: Entradas Reais (Seu salário, etc - Ignora transferências)
   const totalIncome = transactions
-    .filter((t) => 
-      Number(t.amount) > 0 && 
-      t.isPaid &&
-      !t.description.startsWith("Receb. de:") // <--- PULA AS TRANSFERÊNCIAS DE ENTRADA
+    .filter(
+      (t) =>
+        Number(t.amount) > 0 &&
+        t.isPaid &&
+        !t.description.startsWith("Receb. de:")
     )
     .reduce((acc, t) => acc + Number(t.amount), 0);
 
-  const totalExpense = transactions
-    .filter((t) => 
-      Number(t.amount) < 0 && 
-      t.isPaid &&
-      !t.description.startsWith("Transf. para:") // <--- PULA AS TRANSFERÊNCIAS DE SAÍDA
+  // B: Meus Gastos (Apenas o que NÃO é categoria de terceiros)
+  // Filtramos: é despesa, está pago, NÃO é transferência E a categoria NÃO é de terceiros
+  const myExpenses = transactions
+    .filter(
+      (t) =>
+        Number(t.amount) < 0 &&
+        t.isPaid &&
+        !t.description.startsWith("Transf. para:") &&
+        t.category?.isThirdParty === false // Filtra apenas o que é seu gasto real
     )
     .reduce((acc, t) => acc + Number(t.amount), 0);
-    
-  const monthlyBalance = totalIncome + totalExpense;
+
+  // C: A Receber (Gastos dos outros no seu cartão)
+  // Pegamos apenas o que foi gasto em categorias marcadas como de terceiros
+  const receivables = transactions
+    .filter(
+      (t) =>
+        Number(t.amount) < 0 && t.isPaid && t.category?.isThirdParty === true // Identifica o que é empréstimo/reembolso
+    )
+    .reduce((acc, t) => acc + Number(t.amount), 0);
+
+  // D: Balanço Mensal Real (Fluxo de Caixa)
+  // Soma-se todas as saídas (suas + terceiros) porque o dinheiro saiu da sua conta real
+  const totalOut = myExpenses + receivables;
+
+  const monthlyBalance = totalIncome + totalOut;
 
   // --- RENDERIZA O COMPONENTE CLIENTE ---
   return (
-    <DashboardClient 
+    <DashboardClient
       accounts={accounts}
       transactions={serializedTransactions}
       categoryStats={categoryStats}
@@ -134,10 +160,11 @@ export default async function Home({
       year={year}
       kpis={{
         totalIncome,
-        totalExpense,
+        totalExpense: myExpenses, // Passamos apenas SEUS gastos para o card vermelho
+        receivables: Math.abs(receivables), // Passamos o valor positivo para o novo card
         monthlyBalance,
         currentTotalBalance,
-        diff
+        diff,
       }}
     />
   );

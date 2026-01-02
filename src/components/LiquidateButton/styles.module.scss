@@ -1,0 +1,55 @@
+.wrapper { margin-top: 10px; }
+
+.btnOpen {
+  width: 100%;
+  padding: 12px;
+  background-color: #10b981;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  &:hover { background-color: #059669; }
+}
+
+.formInline {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: rgba(16, 185, 129, 0.1);
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.select {
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  color: var(--text-primary);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btnConfirm {
+  flex: 1;
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 8px;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.btnCancel {
+  background: var(--border-color);
+  color: var(--text-primary);
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
