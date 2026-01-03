@@ -17,22 +17,18 @@ export async function getReceivablesData() {
 
   return categories.map(cat => {
     const historyMap: Record<string, { month: string, debt: number, paid: number }> = {};
-    let monthDebt = 0;
     let totalSpent = 0;
     let totalPaid = 0;
-
-    // Transações apenas do mês atual para exibir no Card principal
-    const currentMonthTransactions = cat.transactions
-      .filter(t => {
-        const d = new Date(t.date);
-        return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-      })
-      .map(t => ({ ...t, amount: Number(t.amount) }));
+    
+    // Novas variáveis para calcular o saldo líquido do mês atual
+    let monthExpenses = 0;
+    let monthIncomes = 0;
 
     cat.transactions.forEach(t => {
       const d = new Date(t.date);
       const amount = Number(t.amount);
       const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const isCurrentMonth = d.getMonth() === currentMonth && d.getFullYear() === currentYear;
 
       if (!historyMap[monthKey]) historyMap[monthKey] = { month: monthKey, debt: 0, paid: 0 };
       
@@ -40,10 +36,13 @@ export async function getReceivablesData() {
         const absAmount = Math.abs(amount);
         totalSpent += absAmount;
         historyMap[monthKey].debt += absAmount;
-        if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) monthDebt += absAmount;
+        // Se for deste mês, soma ao montante de despesas do mês
+        if (isCurrentMonth) monthExpenses += absAmount; 
       } else {
         totalPaid += amount;
         historyMap[monthKey].paid += amount;
+        // Se for deste mês, soma ao montante de reembolsos do mês
+        if (isCurrentMonth) monthIncomes += amount; 
       }
     });
 
@@ -52,11 +51,18 @@ export async function getReceivablesData() {
       name: cat.name,
       icon: cat.icon,
       color: cat.color ?? undefined,
-      monthDebt,
+      // ALTERAÇÃO: Agora o monthDebt é o saldo real (Gasto - Pago) do mês
+      // Usamos Math.max(0, ...) para evitar valores negativos no Dashboard
+      monthDebt: Math.max(0, monthExpenses - monthIncomes), 
       totalAccumulated: totalSpent - totalPaid,
       chartData: Object.values(historyMap).map(item => ({ ...item, balance: item.debt - item.paid })),
       allTransactions: cat.transactions.map(t => ({ ...t, amount: Number(t.amount) })).reverse(),
-      currentMonthTransactions // <--- Envia apenas as dívidas de Dezembro para o Card
+      currentMonthTransactions: cat.transactions
+        .filter(t => {
+          const d = new Date(t.date);
+          return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+        })
+        .map(t => ({ ...t, amount: Number(t.amount) }))
     };
   }).filter(s => s.totalAccumulated > 0 || s.monthDebt > 0);
 }
