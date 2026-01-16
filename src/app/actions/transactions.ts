@@ -1,8 +1,11 @@
+// ARQUIVO: src/app/actions/transactions.ts
 'use server'
 
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
+// 1. IMPORTAÇÃO DO ROBÔ
+import { autoReconcileDebts } from "./receivables"
 
 /**
  * CRIAÇÃO DE TRANSAÇÃO (Única ou Parcelada)
@@ -19,7 +22,7 @@ export async function createTransaction(formData: FormData) {
 
   if (!description || !amountStr || !accountId || !categoryId || !dateStr) return;
 
-  // CORREÇÃO: Tratamento do valor sem apagar o ponto decimal
+  // Tratamento do valor
   let baseAmount = parseFloat(
     amountStr
       .replace("R$", "")
@@ -27,13 +30,11 @@ export async function createTransaction(formData: FormData) {
       .replace(",", ".")
   );
   
-  // Garante o sinal correto conforme o tipo
   baseAmount = Math.abs(baseAmount);
   if (type === "expense") baseAmount = baseAmount * -1;
 
   const installmentId = installments > 1 ? crypto.randomUUID() : null
   
-  // Tratamento de data seguro para evitar erros de fuso horário
   const [year, month, day] = dateStr.split('-').map(Number);
   const baseDate = new Date(year, month - 1, day);
 
@@ -43,7 +44,6 @@ export async function createTransaction(formData: FormData) {
     const date = new Date(baseDate);
     date.setMonth(baseDate.getMonth() + i);
 
-    // Ajuste para meses com menos dias (ex: 31 de jan -> 28 de fev)
     if (date.getDate() !== baseDate.getDate()) {
        date.setDate(0);
     }
@@ -73,6 +73,15 @@ export async function createTransaction(formData: FormData) {
   }
 
   await prisma.$transaction(operations);
+
+  // 2. GATILHO DO ROBÔ
+  if (categoryId) {
+    const category = await prisma.category.findUnique({ where: { id: categoryId } });
+    if (category?.isThirdParty) {
+       await autoReconcileDebts(categoryId);
+    }
+  }
+
   revalidatePath("/");
   redirect("/");
 }
@@ -92,8 +101,6 @@ export async function updateTransaction(formData: FormData) {
 
   if (!id || !amountStr || !accountId || !categoryId || !dateStr) return;
 
-  // 1. TRATAMENTO DE VALOR (IGUAL AO CREATE)
-  // Remove R$, espaços e garante que a vírgula vire ponto sem apagar o ponto decimal real
   let baseAmount = parseFloat(
     amountStr
       .replace("R$", "")
@@ -101,29 +108,21 @@ export async function updateTransaction(formData: FormData) {
       .replace(",", ".")
   );
   
-  // Garante que o valor é absoluto antes de aplicar o sinal do tipo
   baseAmount = Math.abs(baseAmount);
   if (type === "expense") baseAmount = baseAmount * -1;
 
-  // 2. BUSCAR TRANSAÇÃO ORIGINAL
   const originalTransaction = await prisma.transaction.findUnique({
     where: { id }
   })
 
   if (!originalTransaction) return;
 
-  // 3. TRATAMENTO DE DATA SEGURO (O PULO DO GATO)
-  // Evita que a transação "mude de dia" sozinha devido ao fuso horário do navegador
   const [year, month, day] = dateStr.split('-').map(Number);
   const updatedDate = new Date(year, month - 1, day);
 
-  // 4. LÓGICA DE ATUALIZAÇÃO
   if (originalTransaction.installmentId) {
-    // --- CENÁRIO A: É PARCELADO (Atualiza o grupo) ---
-    
     let newBaseDescription = description;
     if (originalTransaction.installmentLabel) {
-       // Remove o sufixo antigo para reconstruir o nome das parcelas irmãs
        newBaseDescription = description.replace(` (${originalTransaction.installmentLabel})`, "");
     }
 
@@ -133,7 +132,6 @@ export async function updateTransaction(formData: FormData) {
 
     const operations = siblings.map(sibling => {
       if (sibling.id === id) {
-        // Para a parcela que você está editando manualmente
         return prisma.transaction.update({
           where: { id },
           data: {
@@ -147,7 +145,6 @@ export async function updateTransaction(formData: FormData) {
           }
         });
       } else {
-        // Para as parcelas "irmãs" (só atualiza os dados gerais)
         const siblingLabel = sibling.installmentLabel || "";
         const siblingNewDescription = siblingLabel 
            ? `${newBaseDescription} (${siblingLabel})` 
@@ -169,7 +166,6 @@ export async function updateTransaction(formData: FormData) {
     await prisma.$transaction(operations);
 
   } else {
-    // --- CENÁRIO B: NÃO É PARCELADO (Simples) ---
     await prisma.transaction.update({
       where: { id },
       data: {
@@ -182,6 +178,14 @@ export async function updateTransaction(formData: FormData) {
         isPaid
       }
     });
+  }
+
+  // GATILHO DO ROBÔ NA EDIÇÃO
+  if (categoryId) {
+     const category = await prisma.category.findUnique({ where: { id: categoryId } });
+     if (category?.isThirdParty) {
+        await autoReconcileDebts(categoryId);
+     }
   }
 
   revalidatePath("/");
@@ -197,39 +201,44 @@ export async function toggleTransactionStatus(formData: FormData) {
 
   if (!id) return;
 
-  await prisma.transaction.update({
+  const transaction = await prisma.transaction.update({
     where: { id },
     data: { isPaid: !isPaid }
   });
+
+  if (transaction.categoryId) {
+    const category = await prisma.category.findUnique({ where: { id: transaction.categoryId } });
+    if (category?.isThirdParty) {
+        await autoReconcileDebts(transaction.categoryId);
+    }
+  }
 
   revalidatePath("/");
 }
 
 /**
- * EXCLUSÃO
+ * EXCLUSÃO (O PONTO CRÍTICO)
  */
 export async function deleteTransaction(formData: FormData) {
   const id = formData.get("id") as string
   const deleteMode = formData.get("deleteMode") as string
 
-  const transaction = await prisma.transaction.findUnique({ where: { id } })
+  // Buscamos a categoria junto para saber se chamamos o robô
+  const transaction = await prisma.transaction.findUnique({ 
+    where: { id },
+    include: { category: true } 
+  })
+
   if (!transaction) return;
 
-  // --- 1. LÓGICA DE REVERSÃO DE REEMBOLSO (RESOLVE O PROBLEMA DO RAIO ⚡) ---
-  // Se a transação apagada for um "income" (entrada) de uma categoria de terceiros,
-  // precisamos procurar a despesa original e marcar isReimbursed como false.
+  // --- 1. LÓGICA MANUAL ANTIGA (BACKUP) ---
   if (transaction.type === 'income' && transaction.categoryId) {
-    const category = await prisma.category.findUnique({ 
-      where: { id: transaction.categoryId } 
-    });
-
-    // Só fazemos o rollback se a categoria for de terceiros (Amanda/Mai)
-    if (category?.isThirdParty) {
+    if (transaction.category?.isThirdParty) {
       const originalExpense = await prisma.transaction.findFirst({
         where: {
           categoryId: transaction.categoryId,
-          amount: Number(transaction.amount) * -1, // Valor negativo correspondente
-          isReimbursed: true, // Que estava marcada como reembolsada
+          amount: Number(transaction.amount) * -1, 
+          isReimbursed: true, 
         },
         orderBy: { date: 'desc' }
       });
@@ -237,13 +246,13 @@ export async function deleteTransaction(formData: FormData) {
       if (originalExpense) {
         await prisma.transaction.update({
           where: { id: originalExpense.id },
-          data: { isReimbursed: false } // DEVOLVE O RAIO ⚡ NO PAINEL
+          data: { isReimbursed: false } 
         });
       }
     }
   }
 
-  // --- 2. LÓGICA DE TRANSFERÊNCIAS EM PAR (SEU CÓDIGO ORIGINAL) ---
+  // --- 2. LÓGICA DE TRANSFERÊNCIAS EM PAR ---
   const isTransferOut = transaction.description.startsWith("Transf. para:");
   const isTransferIn = transaction.description.startsWith("Receb. de:");
 
@@ -269,8 +278,14 @@ export async function deleteTransaction(formData: FormData) {
         prisma.transaction.delete({ where: { id: transaction.id } }),
         prisma.transaction.delete({ where: { id: twinTransaction.id } })
       ]);
+
+      // --- CORREÇÃO: CHAMADA DO ROBÔ NA TRANSFERÊNCIA ---
+      if (transaction.category?.isThirdParty && transaction.categoryId) {
+          await autoReconcileDebts(transaction.categoryId);
+      }
+      
       revalidatePath("/");
-      revalidatePath("/receivables"); // Adicionado para atualizar o painel
+      revalidatePath("/receivables"); 
       return;
     }
   }
@@ -284,12 +299,18 @@ export async function deleteTransaction(formData: FormData) {
     await prisma.transaction.delete({ where: { id } });
   }
 
+  // 4. GATILHO DO ROBÔ NA EXCLUSÃO PADRÃO
+  if (transaction.categoryId && transaction.category?.isThirdParty) {
+     console.log(`🗑️ [DELETE HOME] Apagou transação de ${transaction.category.name}. Chamando Robô...`);
+     await autoReconcileDebts(transaction.categoryId);
+  }
+
   revalidatePath("/");
-  revalidatePath("/receivables"); // Garante que o painel de cobranças atualize
+  revalidatePath("/receivables"); 
 }
 
 /**
- * BUSCA DE CONTAS PARA CLIENT COMPONENTS (COM CONVERSÃO DE DECIMAL)
+ * BUSCA DE CONTAS PARA CLIENT COMPONENTS
  */
 export async function getAccountsAction() {
   const accountsRaw = await prisma.account.findMany();
@@ -301,27 +322,27 @@ export async function getAccountsAction() {
         accountId: acc.id, 
         isPaid: true, 
         date: { lte: new Date() },
-        // --- O SEGREDO DA ENGENHARIA ---
-        // Se a despesa foi reembolsada (isReimbursed: true), ela não 
-        // deve mais subtrair do saldo da conta original (ex: Nubank).
+        
         NOT: {
           isReimbursed: true
         }
       }
     });
 
+    const currentBalance = Number(acc.balance) + (Number(agg._sum.amount) || 0);
+
     return { 
       id: acc.id,
       name: acc.name,
       type: acc.type,
       balance: Number(acc.balance), 
-      currentBalance: Number(acc.balance) + (Number(agg._sum.amount) || 0) 
+      currentBalance: currentBalance
     };
   }));
 }
 
 /**
- * BUSCA DE CATEGORIAS PARA CLIENT COMPONENTS
+ * BUSCA DE CATEGORIAS
  */
 export async function getCategoriesAction() {
   const categories = await prisma.category.findMany({ 
@@ -338,7 +359,6 @@ export async function getCategoriesAction() {
 
 /**
  * TRANSFERÊNCIA ENTRE CONTAS
- * Cria duas transações atômicas: uma saída na origem e uma entrada no destino.
  */
 export async function createTransfer(formData: FormData) {
   const amountStr = formData.get("amount") as string
@@ -346,40 +366,34 @@ export async function createTransfer(formData: FormData) {
   const dateStr = formData.get("date") as string
   const fromAccountId = formData.get("fromAccountId") as string
   const toAccountId = formData.get("toAccountId") as string
-  // Opcional: O usuário pode escolher uma categoria "Transferência" ou "Pagamento"
   const categoryId = formData.get("categoryId") as string 
   
   if (!amountStr || !fromAccountId || !toAccountId || !dateStr) return;
 
-  // 1. Tratamento do valor (sempre positivo aqui, a lógica define o sinal)
   let baseAmount = parseFloat(
     amountStr.replace("R$", "").replace(/\s/g, "").replace(",", ".")
   );
   baseAmount = Math.abs(baseAmount);
 
-  // 2. Tratamento da Data
   const [year, month, day] = dateStr.split('-').map(Number);
   const transactionDate = new Date(year, month - 1, day);
 
-  // 3. Criação Atômica (Ou faz os dois, ou não faz nenhum)
   await prisma.$transaction([
-    // A: Tira da Origem (Despesa)
     prisma.transaction.create({
       data: {
         description: `Transf. para: ${description || 'Conta Destino'}`,
-        amount: baseAmount * -1, // Negativo
+        amount: baseAmount * -1, 
         type: 'expense',
         date: transactionDate,
         accountId: fromAccountId,
-        categoryId: categoryId || null, // Ideal ter uma categoria "Transferência"
-        isPaid: true, // Transferências geralmente são imediatas
+        categoryId: categoryId || null, 
+        isPaid: true, 
       }
     }),
-    // B: Coloca no Destino (Receita)
     prisma.transaction.create({
       data: {
         description: `Receb. de: ${description || 'Conta Origem'}`,
-        amount: baseAmount, // Positivo
+        amount: baseAmount, 
         type: 'income',
         date: transactionDate,
         accountId: toAccountId,
@@ -392,4 +406,3 @@ export async function createTransfer(formData: FormData) {
   revalidatePath("/");
   redirect("/");
 }
-

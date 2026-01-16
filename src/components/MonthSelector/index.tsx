@@ -2,14 +2,16 @@
 
 import { format, addMonths, subMonths } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { useRouter, useSearchParams } from 'next/navigation'
+// 1. Adicionado usePathname
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { useState } from 'react'
-import { MonthPickerPopup } from '../MonthPickerPopup' // Importando da pasta vizinha
+import { MonthPickerPopup } from '../MonthPickerPopup' 
 import styles from './styles.module.scss'
 
 export function MonthSelector() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const pathname = usePathname() // 2. Pega a rota atual (ex: '/receivables' ou '/')
   const [isOpen, setIsOpen] = useState(false)
 
   // 1. Ler dados da URL
@@ -25,7 +27,8 @@ export function MonthSelector() {
 
   // 2. Funções de Ação
   const updateUrl = (month: number, year: number) => {
-    const url = `/?month=${month}&year=${year}`
+    // 3. CORREÇÃO: Mantém na página atual usando pathname em vez de '/' fixo
+    const url = `${pathname}?month=${month}&year=${year}`
     router.push(url)
     setIsOpen(false)
   }
