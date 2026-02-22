@@ -315,13 +315,18 @@ export async function deleteTransaction(formData: FormData) {
 export async function getAccountsAction() {
   const accountsRaw = await prisma.account.findMany();
   
+  // Cria a variável do fim do mês aqui também
+  const today = new Date();
+  const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
+
   return Promise.all(accountsRaw.map(async (acc) => {
     const agg = await prisma.transaction.aggregate({
       _sum: { amount: true },
       where: { 
         accountId: acc.id, 
         isPaid: true, 
-        date: { lte: new Date() },
+        // AQUI: Trocamos o 'new Date()' pelo 'endOfMonth'
+        date: { lte: endOfMonth }, 
         
         NOT: {
           isReimbursed: true
@@ -405,4 +410,37 @@ export async function createTransfer(formData: FormData) {
 
   revalidatePath("/");
   redirect("/");
+}
+
+
+/**
+ * ALTERAR STATUS EM LOTE (MARCAR/DESMARCAR TODOS)
+ */
+export async function toggleAllVisibleTransactions(ids: string[], isPaid: boolean) {
+  if (!ids || ids.length === 0) return;
+
+  // 1. Atualiza todas as transações de uma vez só no banco
+  await prisma.transaction.updateMany({
+    where: { id: { in: ids } },
+    data: { isPaid }
+  });
+
+  // 2. Busca quais categorias foram afetadas para avisar o robô
+  const affectedTransactions = await prisma.transaction.findMany({
+    where: { id: { in: ids } },
+    select: { categoryId: true },
+    distinct: ['categoryId']
+  });
+
+  // 3. Gatilho do Robô
+  for (const tx of affectedTransactions) {
+    if (tx.categoryId) {
+      const category = await prisma.category.findUnique({ where: { id: tx.categoryId } });
+      if (category?.isThirdParty) {
+          await autoReconcileDebts(tx.categoryId);
+      }
+    }
+  }
+
+  revalidatePath("/");
 }

@@ -49,12 +49,17 @@ export default async function Home({
   });
   const diff = currentTotalBalance - (initialTotalBalance + (Number(transactionsUntilLastMonth._sum.amount) || 0));
 
+  // Cria a variável do fim do mês
+
+  const endOfMonthH = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
+
   // 4. Contas
   const accounts = await Promise.all(
     accountsRaw.map(async (acc) => {
       const agg = await prisma.transaction.aggregate({
         _sum: { amount: true },
-        where: { accountId: acc.id, isPaid: true, date: { lte: today } },
+        // AQUI: Trocamos o 'today' pelo 'endOfMonth'
+        where: { accountId: acc.id, isPaid: true, date: { lte: endOfMonthH } },
       });
       return {
         ...acc,
@@ -77,7 +82,7 @@ export default async function Home({
     account: { ...t.account, balance: Number(t.account.balance) },
   }));
 
-  // 6. Stats de Categoria
+ // 6. Stats de Categoria
   const expensesGrouped = await prisma.transaction.groupBy({
     by: ["categoryId"],
     where: {
@@ -87,14 +92,24 @@ export default async function Home({
     },
     _sum: { amount: true },
   });
+  
   const allCategories = await prisma.category.findMany();
+  
   const categoryStats = expensesGrouped
     .map((stat) => {
       const categoryInfo = allCategories.find((c) => c.id === stat.categoryId);
       return { ...categoryInfo, total: Number(stat._sum.amount) };
     })
-    .sort((a, b) => a.total - b.total)
-    .slice(0, 5);
+    // 👇 A MÁGICA ENTRA AQUI 👇
+    // Isso vai bloquear qualquer categoria que se chame "Pagamentos" ou "Pagamento de Fatura"
+    .filter((cat) => 
+      cat.name?.toLowerCase() !== "pagamentos" && 
+      cat.name?.toLowerCase() !== "pagamento" &&
+      cat.name?.toLowerCase() !== "pagamento de fatura"
+    )
+    // 👆 ======================= 👆
+    .sort((a, b) => a.total - b.total);
+   
 
   // --- 7. KPIS FINANCEIROS ---
 

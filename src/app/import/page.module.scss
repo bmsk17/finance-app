@@ -1,0 +1,357 @@
+/* ARQUIVO: src/app/import/page.module.scss */
+.container {
+  padding: 2rem;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.header {
+  margin-bottom: 2rem;
+  h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+  p { color: var(--text-secondary); }
+}
+
+/* === UPLOAD E CONFIGURAÇÃO === */
+.uploadCard {
+  background: var(--card-bg);
+  border: 1px dashed var(--border-color);
+  padding: 2rem;
+  border-radius: 12px;
+  text-align: center;
+  margin-bottom: 2rem;
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: center;
+    align-items: center;
+    margin-top: 1rem;
+
+    select, input[type="month"] {
+      padding: 12px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background-color: var(--background, var(--bg-color)); 
+      color: var(--text-primary);
+      font-size: 1rem;
+      outline: none;
+      transition: all 0.2s;
+      cursor: pointer;
+  
+      &:focus {
+        border-color: #6366f1; 
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+      }
+    }
+
+    input[type="file"] {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      cursor: pointer;
+      max-width: 100%;
+      
+      &::file-selector-button {
+        background: var(--background, #1e293b);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin-right: 12px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s;
+      }
+
+      &::file-selector-button:hover {
+        background: rgba(99, 102, 241, 0.1);
+        border-color: #6366f1;
+        color: #6366f1;
+      }
+    }
+
+    button {
+      padding: 12px 24px;
+      border-radius: 8px;
+      border: none;
+      background: #8b5cf6;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+      &:disabled { opacity: 0.5; cursor: not-allowed; }
+      &:hover:not(:disabled) { 
+        transform: translateY(-2px); 
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+      }
+    }
+  }
+}
+
+.listsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* === BARRA DE PROGRESSO === */
+.progressCard {
+  background: var(--card-bg);
+  padding: 15px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  margin-bottom: 1.5rem;
+
+  .progressHeader {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 0.95rem;
+
+    .progressValue {
+      font-weight: bold;
+      &.finished { color: #10b981; } 
+      &.pending { color: #f59e0b; } 
+    }
+  }
+
+  .progressBarTrack {
+    width: 100%;
+    background: #334155;
+    height: 10px;
+    border-radius: 5px;
+    overflow: hidden;
+
+    .progressBarFill {
+      height: 100%;
+      transition: width 0.3s ease, background-color 0.3s ease;
+      &.finished { background: #10b981; }
+      &.pending { background: #f59e0b; }
+    }
+  }
+}
+
+/* === SEÇÕES DA LISTA === */
+.listSection {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.5rem;
+
+  h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &.ready h3 { color: #10b981; }
+  &.needsCategory h3 { color: #f59e0b; }
+  &.ignored h3 { color: #64748b; }
+}
+
+/* === ITENS DA TRANSAÇÃO === */
+.transactionItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 12px; 
+  border-bottom: 1px solid var(--border-color);
+  
+  &:last-child { border-bottom: none; }
+  &.faded { opacity: 0.5; }
+
+  .info {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    .title { font-size: 1.05rem; font-weight: bold; }
+    .title.mesclado { color: #3b82f6; } 
+    
+    .details { 
+      font-size: 0.85rem; 
+      color: var(--text-secondary); 
+      
+      .badgeNew { color: #f59e0b; font-weight: bold; }
+      .badgeOngoing { color: #94a3b8; font-style: italic; }
+    }
+  }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+
+    .amount { font-weight: bold; font-size: 1.1rem; }
+    .amount.out { color: #ef4444; }
+    .amount.in { color: #10b981; }
+
+    select {
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background-color: var(--background, var(--bg-color)); 
+      color: var(--text-primary);
+      font-size: 0.95rem;
+      outline: none;
+      transition: all 0.2s;
+      cursor: pointer;
+
+      &:focus {
+        border-color: #6366f1; 
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+      }
+    }
+  }
+}
+
+/* === BOTÕES DENTRO DA LISTA === */
+.btnRelate {
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px dashed var(--border-color);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  &:hover { background: rgba(255, 255, 255, 0.05); border-color: #94a3b8; }
+}
+
+.btnUndo {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: bold;
+  transition: all 0.2s;
+  &:hover { background: rgba(239, 68, 68, 0.2); }
+}
+
+/* === BUSCADOR (CORRELATE BOX) - AQUI ESTÁ A MUDANÇA === */
+.correlateBox {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  width: 100%;
+  min-width: 380px; /* AUMENTADO PARA DAR ESPAÇO */
+
+  .searchRow {
+    display: flex;
+    gap: 8px;
+
+    input {
+      flex: 1;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background-color: var(--background, var(--bg-color));
+      color: var(--text-primary);
+      font-size: 0.95rem;
+      outline: none;
+      &:focus { border-color: #6366f1; }
+    }
+
+    .cancelBtn {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      border-radius: 8px;
+      padding: 0 12px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.2s;
+      &:hover { 
+        background: rgba(239, 68, 68, 0.1); 
+        color: #ef4444; 
+        border-color: #ef4444; 
+      }
+    }
+  }
+
+  .searchResults {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-top: 4px;
+    max-height: 300px; /* Um pouco mais alto */
+    overflow-y: auto;
+    z-index: 50; 
+    box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5);
+
+    /* ITEM DA LISTA REFORMULADO */
+    .searchItem {
+      padding: 12px 14px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center; /* Alinha verticalmente */
+      font-size: 0.95rem;
+      color: var(--text-primary);
+
+      &:last-child { border-bottom: none; }
+      &:hover { background: rgba(99, 102, 241, 0.1); }
+      
+      /* Organiza Nome e Data */
+      span {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        
+        small {
+          font-size: 0.8rem;
+          color: var(--text-secondary);
+          white-space: nowrap; /* IMPEDE A DATA DE QUEBRAR */
+        }
+      }
+
+      /* Valor com destaque */
+      strong { 
+        color: #10b981; 
+        white-space: nowrap;
+        margin-left: 16px;
+        font-size: 1.05rem;
+      } 
+    }
+
+    .emptySearch {
+      padding: 12px 14px;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      text-align: center;
+      font-style: italic;
+    }
+  }
+}
+
+/* === AÇÃO FINAL === */
+.finalAction {
+  margin-top: 2rem;
+  text-align: right;
+
+  .btnSave {
+    padding: 16px 32px;
+    font-size: 1.1rem;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #10b981; 
+
+    &:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
+    &:disabled { background: #475569; cursor: not-allowed; opacity: 0.7; }
+  }
+}

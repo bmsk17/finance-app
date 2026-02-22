@@ -8,7 +8,7 @@ import styles from "@/app/page.module.scss";
 import { MonthSelector } from "@/components/MonthSelector";
 import { DeleteButton } from "@/components/DeleteButton";
 import { RecurringAlert } from "@/components/RecurringAlert";
-import { toggleTransactionStatus } from "@/app/actions/transactions";
+import { toggleTransactionStatus, toggleAllVisibleTransactions } from "@/app/actions/transactions"; 
 
 interface DashboardProps {
   accounts: any[];
@@ -17,7 +17,7 @@ interface DashboardProps {
   kpis: {
     totalIncome: number;
     totalExpense: number;
-    totalOutflow: number; // <--- NOVA PROPRIEDADE
+    totalOutflow: number;
     receivablesMonth: number;
     receivablesTotal: number;
     monthlyBalance: number;
@@ -38,7 +38,6 @@ export function DashboardClient({
   month,
   year,
 }: DashboardProps) {
-  // --- ESTADOS DE CONTROLE ---
   const [sortConfig, setSortConfig] = useState<{
     key: string;
     direction: "asc" | "desc";
@@ -48,8 +47,11 @@ export function DashboardClient({
   });
 
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [isTogglingBulk, setIsTogglingBulk] = useState(false);
 
-  // --- LÓGICA DE ORDENAÇÃO E FILTRO ---
+  const [showMyExpenses, setShowMyExpenses] = useState(true);
+  const [showThirdParty, setShowThirdParty] = useState(true);
+
   const filteredAndSortedTransactions = useMemo(() => {
     let result = [...transactions];
 
@@ -104,6 +106,32 @@ export function DashboardClient({
   const getKpiColor = (index: number) =>
     [styles.kpiBlue, styles.kpiGreen, styles.kpiPink][index % 3];
 
+  const hasPending = filteredAndSortedTransactions.some(tx => !tx.isPaid); 
+  
+  const handleToggleBulk = async () => {
+    if (filteredAndSortedTransactions.length === 0) return;
+    setIsTogglingBulk(true);
+    
+    const ids = filteredAndSortedTransactions.map(t => t.id);
+    const nextStatus = hasPending ? true : false; 
+
+    try {
+      await toggleAllVisibleTransactions(ids, nextStatus);
+    } catch (error) {
+      console.error("Erro ao atualizar em lote", error);
+    } finally {
+      setIsTogglingBulk(false);
+    }
+  };
+
+  const myCategories = categoryStats.filter(c => !c.isThirdParty);
+  const thirdPartyCategories = categoryStats.filter(c => c.isThirdParty);
+
+  const myCategoriesTotal = myCategories.reduce((acc, c) => acc + c.total, 0);
+  const thirdPartyTotal = thirdPartyCategories.reduce((acc, c) => acc + c.total, 0);
+  
+  const maxValGlobal = categoryStats.reduce((max, cat) => Math.max(max, Math.abs(cat.total)), 0);
+
   return (
     <main className={styles.wrapper}>
       <div className={styles.topbar}>
@@ -116,7 +144,6 @@ export function DashboardClient({
         </div>
       </div>
 
-      {/* SEÇÃO 1: PATRIMÔNIO */}
       <section className={styles.patrimonySection}>
         <div>
           <div className={styles.sectionHeader}>
@@ -158,10 +185,8 @@ export function DashboardClient({
         currentYear={year}
       />
 
-      {/* SEÇÃO 2: RESUMO MENSAL */}
       <div className={styles.summaryGrid}>
         
-        {/* Card 1: Entradas */}
         <div className={styles.summaryCard}>
           <span>Entradas (Mês)</span>
           <div className={`${styles.value} ${styles.green}`}>
@@ -169,21 +194,16 @@ export function DashboardClient({
           </div>
         </div>
 
-        {/* --- Card 2: MEUS GASTOS (ATUALIZADO) --- */}
         <div className={styles.summaryCard}>
           <span>Meus Gastos</span>
-          {/* Valor Principal (Seu consumo) */}
           <div className={`${styles.value} ${styles.red}`}>
             {formatMoney(kpis.totalExpense)}
           </div>
-          {/* Valor Secundário (Saída Total da Conta) */}
           <div style={{ fontSize: "0.85rem", color: "#888", marginTop: "4px" }}>
             Saída Total: {formatMoney(kpis.totalOutflow)}
           </div>
         </div>
-        {/* --------------------------------------- */}
 
-        {/* Card 3: A Receber (Já estava correto) */}
         <div className={styles.summaryCard}>
           <span>A Receber (Total)</span>
           <div className={styles.value} style={{ color: "#d97706" }}>
@@ -194,7 +214,6 @@ export function DashboardClient({
           </div>
         </div>
 
-        {/* Card 4: Fluxo de Caixa */}
         <div className={styles.summaryCard}>
           <span>Fluxo de Caixa</span>
           <div className={`${styles.value} ${kpis.monthlyBalance >= 0 ? styles.blue : styles.red}`}>
@@ -204,9 +223,7 @@ export function DashboardClient({
         
       </div>
 
-      {/* SEÇÃO 3: TABELA E GRÁFICOS (Continua igual) */}
       <div className={styles.grid2}>
-        {/* TABELA DE MOVIMENTAÇÕES */}
         <div className={styles.card}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
             <h3 className={styles.cardTitle} style={{ marginBottom: 0 }}>
@@ -220,11 +237,30 @@ export function DashboardClient({
           </div>
 
           <div className={styles.table}>
-            <div className={styles.trowHeader}>
+            <div className={styles.trowHeader} style={{ display: 'flex', alignItems: 'center' }}>
+              
+              <div style={{ marginRight: '16px', display: 'flex', alignItems: 'center' }}>
+                <button 
+                  onClick={handleToggleBulk}
+                  disabled={isTogglingBulk || filteredAndSortedTransactions.length === 0}
+                  title={hasPending ? "Marcar tudo como pago" : "Marcar tudo como pendente"}
+                  style={{ 
+                    background: "transparent", 
+                    border: "none", 
+                    cursor: "pointer", 
+                    fontSize: "1.4rem", 
+                    opacity: isTogglingBulk ? 0.3 : 1,
+                    transition: "transform 0.2s"
+                  }}
+                >
+                  {hasPending ? "⏳" : "✅"}
+                </button>
+              </div>
+              
               <span onClick={() => requestSort("description")} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}>Descrição {getSortIcon("description")}</span>
-              <span onClick={() => requestSort("date")} style={{ cursor: "pointer", width: "100px", textAlign: "center", display: "flex", justifyContent: "center", alignItems: "center", gap: "4px" }}>Data {getSortIcon("date")}</span>
+              <span onClick={() => requestSort("date")} style={{ cursor: "pointer", width: "100px", textAlign: "center", display: "flex", justifyContent: "center", alignItems: "center", gap: "4px", marginLeft: 'auto' }}>Data {getSortIcon("date")}</span>
               <span onClick={() => requestSort("amount")} style={{ cursor: "pointer", width: "120px", textAlign: "right", display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "4px" }}>Valor {getSortIcon("amount")}</span>
-              <span></span>
+              <span style={{ width: '80px' }}></span>
             </div>
 
             {filteredAndSortedTransactions.length === 0 ? (
@@ -253,16 +289,16 @@ export function DashboardClient({
                     </span>
                   </div>
 
-                  <div className={styles.trowDate}>
+                  <div className={styles.trowDate} style={{ marginLeft: 'auto', width: '100px', textAlign: 'center' }}>
                     {new Date(tx.date).toLocaleDateString("pt-BR", { timeZone: "UTC" })}
                   </div>
 
-                  <div className={`${styles.trowValue} ${tx.type === "expense" ? styles.expense : styles.income}`}>
+                  <div className={`${styles.trowValue} ${tx.type === "expense" ? styles.expense : styles.income}`} style={{ width: '120px', textAlign: 'right' }}>
                     {tx.type === "expense" ? "" : "+"}
                     {Number(tx.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                   </div>
 
-                  <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end", alignItems: "center", minWidth: "80px" }}>
+                  <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end", alignItems: "center", width: "80px" }}>
                     <Link href={`/transactions/edit/${tx.id}`}>
                       <button className={styles.editBtn} title="Editar">✏️</button>
                     </Link>
@@ -274,31 +310,91 @@ export function DashboardClient({
           </div>
         </div>
 
-        {/* GASTOS DO MÊS */}
+        {/* GASTOS DO MÊS COM SANFONA LIMPA */}
         <div className={styles.card}>
           <h3 className={styles.cardTitle}>Gastos do Mês</h3>
           {categoryStats.length === 0 ? (
             <p className="text-gray-400">Nenhuma despesa neste mês.</p>
           ) : (
             <div className={styles.categoryList}>
-              <p style={{ fontSize: "0.8rem", color: "gray", marginBottom: "10px" }}>* Clique na categoria para filtrar</p>
-              {categoryStats.map((cat) => {
-                const maxVal = categoryStats[0]?.total ? Math.abs(categoryStats[0].total) : 0;
-                const percentage = Math.round((Math.abs(cat.total) / maxVal) * 100);
-                const isSelected = selectedCategory === cat.id;
-
-                return (
-                  <div key={cat.id} className={styles.categoryItem} onClick={() => setSelectedCategory(isSelected ? null : cat.id)} style={{ cursor: "pointer", opacity: selectedCategory && !isSelected ? 0.4 : 1, transition: "opacity 0.2s" }}>
-                    <div className={styles.catHeader}>
-                      <span style={{ fontWeight: isSelected ? "bold" : "normal" }}>{cat.icon} {cat.name} {isSelected && " (Filtrado)"}</span>
-                      <span className={styles.negative}>{formatMoney(cat.total)}</span>
-                    </div>
-                    <div className={styles.catBarBg}>
-                      <div className={styles.catBarFill} style={{ width: `${percentage}%`, backgroundColor: cat.color || "#64748b" }}></div>
-                    </div>
+              <p style={{ fontSize: "0.8rem", color: "gray", marginBottom: "8px" }}>* Clique na categoria para filtrar</p>
+              
+              {/* --- GRUPO 1: MEUS GASTOS --- */}
+              {myCategories.length > 0 && (
+                <div className={styles.accordionGroup}>
+                  <div className={styles.accordionHeader} onClick={() => setShowMyExpenses(!showMyExpenses)}>
+                    <span>
+                      <span className={styles.iconToggle}>{showMyExpenses ? "▼" : "▶"}</span> 
+                      Meus Gastos
+                    </span>
+                    <span className={styles.negative}>{formatMoney(myCategoriesTotal)}</span>
                   </div>
-                );
-              })}
+                  
+                  {showMyExpenses && (
+                    <div className={styles.accordionBody}>
+                      {myCategories.map((cat) => {
+                        const percentage = Math.round((Math.abs(cat.total) / (maxValGlobal || 1)) * 100);
+                        const isSelected = selectedCategory === cat.id;
+
+                        return (
+                          <div 
+                            key={cat.id} 
+                            className={`${styles.categoryItem} ${selectedCategory && !isSelected ? styles.dimmed : ''}`} 
+                            onClick={() => setSelectedCategory(isSelected ? null : cat.id)}
+                          >
+                            <div className={styles.catHeader}>
+                              <span style={{ fontWeight: isSelected ? "bold" : "normal" }}>{cat.icon} {cat.name} {isSelected && " (Filtrado)"}</span>
+                              <span className={styles.negative}>{formatMoney(cat.total)}</span>
+                            </div>
+                            <div className={styles.catBarBg}>
+                              <div className={styles.catBarFill} style={{ width: `${percentage}%`, backgroundColor: cat.color || "#64748b" }}></div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* --- GRUPO 2: CONTA DOS OUTROS --- */}
+              {thirdPartyCategories.length > 0 && (
+                <div className={styles.accordionGroup}>
+                  <div className={styles.accordionHeader} onClick={() => setShowThirdParty(!showThirdParty)}>
+                    <span>
+                      <span className={styles.iconToggle}>{showThirdParty ? "▼" : "▶"}</span> 
+                      Conta dos Outros
+                    </span>
+                    <span className={styles.negative}>{formatMoney(thirdPartyTotal)}</span>
+                  </div>
+                  
+                  {showThirdParty && (
+                    <div className={styles.accordionBody}>
+                      {thirdPartyCategories.map((cat) => {
+                        const percentage = Math.round((Math.abs(cat.total) / (maxValGlobal || 1)) * 100);
+                        const isSelected = selectedCategory === cat.id;
+
+                        return (
+                          <div 
+                            key={cat.id} 
+                            className={`${styles.categoryItem} ${selectedCategory && !isSelected ? styles.dimmed : ''}`} 
+                            onClick={() => setSelectedCategory(isSelected ? null : cat.id)}
+                          >
+                            <div className={styles.catHeader}>
+                              <span style={{ fontWeight: isSelected ? "bold" : "normal" }}>{cat.icon} {cat.name} {isSelected && " (Filtrado)"}</span>
+                              <span className={styles.negative}>{formatMoney(cat.total)}</span>
+                            </div>
+                            <div className={styles.catBarBg}>
+                              <div className={styles.catBarFill} style={{ width: `${percentage}%`, backgroundColor: cat.color || "#64748b" }}></div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
             </div>
           )}
         </div>

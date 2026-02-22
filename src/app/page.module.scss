@@ -1,3 +1,10 @@
+/* =========================================
+   ARQUIVO: src/app/page.module.scss
+   ========================================= */
+
+/* -----------------------------------------
+   1. LAYOUT GERAL & CONTAINERS
+   ----------------------------------------- */
 .wrapper {
   padding: 24px;
   max-width: 1200px;
@@ -5,6 +12,39 @@
   width: 100%;
 }
 
+.grid2 {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card {
+  background: var(--card-bg);
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+}
+
+.cardTitle {
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+/* Utilitários de Cor */
+.positive { color: #10b981; font-weight: 600; }
+.negative { color: #ef4444; font-weight: 600; }
+
+/* -----------------------------------------
+   2. TOPBAR & BOTÕES
+   ----------------------------------------- */
 .topbar {
   display: flex;
   justify-content: space-between;
@@ -15,31 +55,21 @@
 .title {
   font-size: 1.8rem;
   font-weight: 700;
-  color: var(--text-primary); /* Variável */
+  color: var(--text-primary);
 }
 
 .sectionTitle {
   font-size: 1.2rem;
   font-weight: 600;
-  color: var(--text-secondary); /* Variável */
+  color: var(--text-secondary);
   margin-bottom: 0;
 }
 
-.btnAddBank {
-  background: var(--card-bg); /* Variável */
-  color: var(--text-secondary); /* Variável */
-  border: 1px solid var(--border-color); /* Variável */
-  border-radius: 6px;
-  padding: 6px 12px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: bold;
-  transition: all 0.2s;
-
-  &:hover {
-    background: var(--hover-bg);
-    color: var(--text-primary);
-  }
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
 }
 
 .filters {
@@ -48,7 +78,7 @@
 }
 
 .btnPrimary {
-  background-color: var(--accent); /* Variável */
+  background-color: var(--accent);
   color: #fff;
   border: none;
   padding: 10px 20px;
@@ -62,35 +92,80 @@
   }
 }
 
+.btnAddBank {
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: bold;
+  transition: all 0.2s;
+
+  &:hover {
+    background: var(--hover-bg);
+    color: var(--text-primary);
+  }
+}
+
+/* -----------------------------------------
+   3. SEÇÃO PATRIMÔNIO (CONTAS & TOTAL)
+   ----------------------------------------- */
+.patrimonySection {
+  display: grid;
+  grid-template-columns: 3fr 1fr; /* Proporção mais equilibrada */
+  gap: 24px;
+  margin-bottom: 30px;
+  align-items: stretch;
+
+  /* Trava do scroll horizontal */
+  > div:first-child {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr; 
+  }
+}
+
 .kpiRow {
   display: flex;
   gap: 16px;
-  margin-bottom: 24px;
   overflow-x: auto;
-  padding-bottom: 4px;
+  padding-bottom: 12px;
+  width: 100%; 
+  
+  /* Scrollbar Estilizada */
+  &::-webkit-scrollbar { height: 8px; }
+  &::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.05); border-radius: 10px; }
+  &::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 10px; }
 }
 
 .kpi {
-  background: var(--card-bg); /* Variável */
-  border: 1px solid var(--border-color); /* Variável */
+  background: var(--card-bg);
   padding: 20px;
-  border-radius: 16px;
-  min-width: 220px;
-  position: relative;
-  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  
+  min-width: 208px; 
+  flex-shrink: 0; 
 }
 
-/* Bordas coloridas para diferenciar contas */
+/* Bordas Coloridas das Contas */
 .kpiBlue { border-left: 4px solid #3b82f6; }
 .kpiGreen { border-left: 4px solid #10b981; }
 .kpiPink { border-left: 4px solid #ec4899; }
 
 .kpiHeader {
   font-size: 14px;
-  color: var(--text-secondary); /* Variável */
+  color: var(--text-secondary);
   text-transform: uppercase;
   font-weight: 600;
 }
@@ -98,100 +173,15 @@
 .kpiValue {
   font-size: 24px;
   font-weight: 700;
-  color: var(--text-primary); /* Variável */
+  color: var(--text-primary);
 }
 
 .subTitle {
-  color: var(--text-secondary); /* Variável */
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
-/* LAYOUT GERAL */
-.grid2 {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 24px;
-
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-  }
-}
-
-.card {
-  background: var(--card-bg); /* Variável */
-  padding: 24px;
-  border-radius: 16px;
-  border: 1px solid var(--border-color); /* Variável */
-}
-
-.cardTitle {
-  margin-top: 0;
-  margin-bottom: 20px;
-  font-size: 1.1rem;
-  color: var(--text-secondary); /* Variável */
-  text-transform: uppercase;
-  font-weight: 700;
-}
-
-/* TABELA DE TRANSAÇÕES */
-.table {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.trowHeader {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 0 16px 8px 16px;
-  border-bottom: 1px solid var(--border-color); /* Variável */
-  font-size: 13px;
-  color: var(--text-secondary); /* Variável */
-  font-weight: 600;
-  text-transform: uppercase;
-  
-  /* Mantém layout das colunas */
-  span:nth-child(1) { flex: 1; } /* Descrição */
-  span:nth-child(2) { width: 100px; } /* Data */
-  span:nth-child(3) { width: 120px; text-align: right; } /* Valor */
-  span:nth-child(4) { width: 50px; } /* Ações */
-}
-
-.trow {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  background: var(--background); /* Leve contraste dentro do card */
-  border-radius: 12px;
-  transition: transform 0.2s;
-
-  &:hover {
-    transform: translateX(4px);
-    background: var(--hover-bg); /* Variável */
-  }
-}
-
-.positive { color: #10b981; font-weight: 600; }
-.negative { color: #ef4444; font-weight: 600; }
-
-/* SEÇÃO PATRIMÔNIO */
-.patrimonySection {
-  margin-bottom: 24px;
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 20px;
-  @media (max-width: 768px) { grid-template-columns: 1fr; }
-}
-
-.sectionHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-
+/* Card do Patrimônio Total */
 .patrimonyCard {
   @extend .card;
   display: flex;
@@ -199,7 +189,7 @@
   justify-content: center;
   
   .label {
-    color: var(--text-secondary); /* Variável */
+    color: var(--text-secondary);
     font-size: 0.9rem;
     text-transform: uppercase;
     font-weight: bold;
@@ -209,17 +199,17 @@
   .bigValue {
     font-size: 2rem;
     font-weight: bold;
-    color: var(--text-primary); /* Variável */
+    color: var(--text-primary);
     margin-bottom: 8px;
   }
 
   .comparisonBox {
     padding-top: 16px;
-    border-top: 1px solid var(--border-color); /* Variável */
+    border-top: 1px solid var(--border-color);
 
     p {
       font-size: 0.85rem;
-      color: var(--text-secondary); /* Variável */
+      color: var(--text-secondary);
       margin-bottom: 4px;
     }
 
@@ -236,25 +226,28 @@
   }
 }
 
-/* CARD RESUMO MENSAL */
+/* -----------------------------------------
+   4. RESUMO MENSAL (ENTRADAS, SAÍDAS)
+   ----------------------------------------- */
 .summaryGrid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
   margin-bottom: 24px;
+
   @media (max-width: 768px) { grid-template-columns: 1fr; }
 }
 
 .summaryCard {
-  background: var(--card-bg); /* Variável */
+  background: var(--card-bg);
   padding: 16px;
   border-radius: 12px;
-  border: 1px solid var(--border-color); /* Variável */
+  border: 1px solid var(--border-color);
   text-align: center;
 
   span {
     display: block;
-    color: var(--text-secondary); /* Variável */
+    color: var(--text-secondary);
     font-size: 0.875rem;
     font-weight: 700;
     text-transform: uppercase;
@@ -270,7 +263,97 @@
   }
 }
 
-/* LISTA DE CATEGORIAS */
+/* -----------------------------------------
+   5. TABELA DE TRANSAÇÕES
+   ----------------------------------------- */
+.table {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.trowHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px 8px 16px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.trow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--background);
+  border-radius: 12px;
+  transition: transform 0.2s;
+
+  &:hover {
+    transform: translateX(4px);
+    background: var(--hover-bg);
+  }
+}
+
+.trowInfo {
+  display: flex;
+  flex-direction: column;
+  flex: 1; 
+  
+  strong {
+    color: var(--text-primary);
+    font-size: 0.95rem;
+  }
+
+  .trowDetail {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 2px;
+  }
+}
+
+.trowDate {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  width: 100px;
+  text-align: center;
+}
+
+.trowValue {
+  font-weight: 700;
+  font-size: 0.95rem;
+  width: 120px;
+  text-align: right;
+  
+  &.expense { color: #ef4444; } 
+  &.income { color: #10b981; }  
+}
+
+.editBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  opacity: 0.6;
+  transition: all 0.2s;
+  padding: 0 8px;
+
+  &:hover {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+/* -----------------------------------------
+   6. LISTA DE CATEGORIAS (SANFONA)
+   ----------------------------------------- */
 .categoryList {
   display: flex;
   flex-direction: column;
@@ -288,13 +371,13 @@
   justify-content: space-between;
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-primary); /* Variável */
+  color: var(--text-primary);
 }
 
 .catBarBg {
   width: 100%;
   height: 8px;
-  background-color: var(--background); /* Fundo da barra */
+  background-color: var(--background);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -305,57 +388,97 @@
   transition: width 0.5s ease-out;
 }
 
-.editBtn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-size: 1.2rem;
-  opacity: 0.6;
-  transition: opacity 0.2s;
-  padding: 0 8px; /* Espacinho para clicar melhor */
-
-  /* O CSS resolve o hover sozinho! */
-  &:hover {
-    opacity: 1;
-    transform: scale(1.1);
-  }
-}
-
-
-.trowInfo {
+/* -----------------------------------------
+   6. LISTA DE CATEGORIAS (SANFONA)
+   ----------------------------------------- */
+.categoryList {
   display: flex;
   flex-direction: column;
-  flex: 1; /* Ocupa o espaço disponível */
-  
-  strong {
-    color: var(--text-primary); /* Preto no Claro, Branco no Escuro */
-    font-size: 0.95rem;
+  gap: 8px;
+}
+
+/* Grupos da Sanfona */
+.accordionGroup {
+  margin-bottom: 1rem;
+}
+
+.accordionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 700;
+  padding: 12px 10px;
+  border-bottom: 2px solid var(--border-color);
+  color: var(--text-primary);
+  transition: background-color 0.2s;
+  border-radius: 8px 8px 0 0;
+
+  &:hover {
+    background-color: var(--hover-bg);
   }
 
-  .trowDetail {
-    font-size: 0.75rem;
-    color: var(--text-secondary); /* Cinza adaptável */
+  span:first-child {
     display: flex;
     align-items: center;
-    gap: 4px;
-    margin-top: 2px;
+    gap: 8px;
+  }
+
+  .iconToggle {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    width: 16px;
+    text-align: center;
   }
 }
 
-.trowDate {
-  font-size: 0.85rem;
-  color: var(--text-secondary); /* Cinza adaptável */
-  width: 100px;
-  text-align: center;
+/* O corpo da "Escada" */
+.accordionBody {
+  padding-left: 16px;
+  margin-left: 12px;
+  padding-top: 12px;
+  padding-bottom: 8px;
+  border-left: 2px dashed var(--border-color); /* Borda pontilhada moderna */
+  display: flex;
+  flex-direction: column;
+  gap: 16px; 
 }
 
-/* Mantém o valor com cor fixa (verde/vermelho) ou adaptável se preferires */
-.trowValue {
-  font-weight: 700;
-  font-size: 0.95rem;
-  width: 120px;
-  text-align: right;
+/* Item individual da categoria */
+.categoryItem {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.2s;
   
-  &.expense { color: #ef4444; } /* Vermelho */
-  &.income { color: #10b981; }  /* Verde */
+  &.dimmed {
+    opacity: 0.3; /* Fica transparente se não estiver selecionado */
+  }
+
+  &:hover:not(.dimmed) {
+    transform: translateX(2px);
+  }
+}
+
+.catHeader {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.catBarBg {
+  width: 100%;
+  height: 8px;
+  background-color: var(--background);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.catBarFill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease-out;
 }
