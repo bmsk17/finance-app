@@ -10,9 +10,9 @@ import styles from "./page.module.scss";
 import { useRouter } from "next/navigation";
 
 export function ImportClient({
-  categories,
-  accounts,
-  recentTransactions,
+  categories = [], // Blindado
+  accounts = [],   // Blindado
+  recentTransactions = [], // Blindado
 }: any) {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -41,13 +41,17 @@ export function ImportClient({
     try {
       const formData = new FormData(e.currentTarget);
       const data = await analyzeNubankCsvAction(formData);
-      const dataWithIds = data.map((t: any) => ({
+      const dataWithIds = (data || []).map((t: any) => ({
         ...t,
-        tempId: crypto.randomUUID(),
+        // Se o navegador bloquear o crypto (por estar no IP local), ele usa o Math.random como plano B
+        tempId: (typeof crypto !== 'undefined' && crypto.randomUUID) 
+          ? crypto.randomUUID() 
+          : Math.random().toString(36).substring(2, 15) + Date.now().toString(36),
       }));
       setTransactions(dataWithIds);
     } catch (error) {
-      alert("Erro ao ler o ficheiro.");
+      console.error("🚨 ERRO NO UPLOAD/FRONTEND:", error);
+      alert("Erro ao ler o ficheiro. Veja o Console (F12).");
     } finally {
       setIsUploading(false);
     }
@@ -73,7 +77,7 @@ export function ImportClient({
               ...t,
               status: "READY",
               correlatedId: existingTransactionId,
-              description: `[Mesclado] ${t.description}`,
+              description: `[Mesclado] ${t.description || ""}`,
             }
           : t,
       ),
@@ -92,7 +96,7 @@ export function ImportClient({
               correlatedId: null,
               suggestedCategoryId: null,
               learned: false,
-              description: t.description.replace("[Mesclado] ", ""),
+              description: (t.description || "").replace("[Mesclado] ", ""),
             }
           : t,
       ),
@@ -104,9 +108,7 @@ export function ImportClient({
     const readyTransactions = transactions.filter((t) => t.status === "READY");
 
     try {
-      // Recebemos o relatório que o Backend nos mandou
       const relatorio = await saveImportedTransactionsAction(readyTransactions, selectedAccount, selectedMonth);      
-      // Montamos a mensagem do pop-up
       const mensagem = 
         `✅ Fatura importada com sucesso!\n\n` +
         `📊 Resumo do que foi salvo:\n` +
@@ -117,7 +119,8 @@ export function ImportClient({
       alert(mensagem);
       router.push("/");
     } catch (error) {
-      alert("Erro ao salvar no banco de dados.");
+      console.error("🚨 ERRO AO SALVAR:", error);
+      alert("Erro ao salvar no banco de dados. Veja o Console (F12).");
     } finally {
       setIsSaving(false);
     }
@@ -135,14 +138,13 @@ export function ImportClient({
       : Math.round((ready.length / totalToProcess) * 100);
   const isFinished = needsCat.length === 0 && totalToProcess > 0;
   
-  // Variáveis para as classes do CSS
   const progressStatusClass = isFinished ? styles.finished : styles.pending;
 
   const formatMoney = (val: number) =>
     new Intl.NumberFormat("pt-BR", {
       style: "currency",
       currency: "BRL",
-    }).format(val);
+    }).format(Number(val) || 0);
 
   return (
     <div className={styles.container}>
@@ -215,7 +217,6 @@ export function ImportClient({
                     <span className={styles.details}>
                       {t.originalDate}{" "}
                       
-                      {/* LÓGICA DE PARCELA CORRIGIDA DIRETAMENTE NO FRONTEND */}
                       {t.installment ? (
                         t.installment.current === 1 ? (
                           <span className={styles.badgeNew}>(Nova Compra Parcelada {t.installment.current}/{t.installment.total})</span>
@@ -272,7 +273,7 @@ export function ImportClient({
 
                                 if (
                                   searchTerm &&
-                                  !rt.description
+                                  !(rt.description || "")
                                     .toLowerCase()
                                     .includes(searchTerm.toLowerCase())
                                 )
@@ -340,7 +341,7 @@ export function ImportClient({
                         {t.description}
                       </span>
                       <span className={styles.details}>
-                        {t.originalDate} • {t.correlatedId ? "🔗 Mesclado com banco" : `${cat?.icon} ${cat?.name}`}
+                        {t.originalDate} • {t.correlatedId ? "🔗 Mesclado com banco" : `${cat?.icon || "📄"} ${cat?.name || "Sem categoria"}`}
                       </span>
                     </div>
                     <div className={styles.actions}>

@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import styles from "@/app/page.module.scss"; 
 import { MonthSelector } from "@/components/MonthSelector";
@@ -38,6 +38,17 @@ export function DashboardClient({
   month,
   year,
 }: DashboardProps) {
+
+  // ======= O LOG ESPIÃO DO FRONTEND =======
+  useEffect(() => {
+    console.log("👁️ [DASHBOARD] Dados que chegaram do servidor:");
+    console.log("👉 categoryStats (O tipo é: " + typeof categoryStats + "):", categoryStats);
+    if (!categoryStats) {
+      console.error("🚨 ALERTA: categoryStats chegou VAZIO (undefined ou null) do page.tsx!");
+    }
+  }, [categoryStats]);
+  // ========================================
+
   const [sortConfig, setSortConfig] = useState<{
     key: string;
     direction: "asc" | "desc";
@@ -53,7 +64,7 @@ export function DashboardClient({
   const [showThirdParty, setShowThirdParty] = useState(true);
 
   const filteredAndSortedTransactions = useMemo(() => {
-    let result = [...transactions];
+    let result = [...(transactions || [])];
 
     if (selectedCategory) {
       result = result.filter((t) => t.categoryId === selectedCategory);
@@ -124,13 +135,16 @@ export function DashboardClient({
     }
   };
 
-  const myCategories = categoryStats.filter(c => !c.isThirdParty);
-  const thirdPartyCategories = categoryStats.filter(c => c.isThirdParty);
+  // Trava para impedir a tela de quebrar e deixar você ver o erro no console
+  const safeCats = categoryStats || [];
 
-  const myCategoriesTotal = myCategories.reduce((acc, c) => acc + c.total, 0);
-  const thirdPartyTotal = thirdPartyCategories.reduce((acc, c) => acc + c.total, 0);
+  const myCategories = safeCats.filter(c => c && !c.isThirdParty);
+  const thirdPartyCategories = safeCats.filter(c => c && c.isThirdParty);
+
+  const myCategoriesTotal = myCategories.reduce((acc, c) => acc + (c?.total || 0), 0);
+  const thirdPartyTotal = thirdPartyCategories.reduce((acc, c) => acc + (c?.total || 0), 0);
   
-  const maxValGlobal = categoryStats.reduce((max, cat) => Math.max(max, Math.abs(cat.total)), 0);
+  const maxValGlobal = safeCats.reduce((max, cat) => Math.max(max, Math.abs(cat?.total || 0)), 0);
 
   return (
     <main className={styles.wrapper}>
@@ -153,7 +167,7 @@ export function DashboardClient({
             </Link>
           </div>
           <div className={styles.kpiRow}>
-            {accounts.map((account, index) => (
+            {(accounts || []).map((account, index) => (
               <div key={account.id} className={`${styles.kpi} ${getKpiColor(index)}`}>
                 <div className={styles.kpiHeader}>{account.type}</div>
                 <div className={styles.kpiValue}>{formatMoney(account.currentBalance)}</div>
@@ -167,12 +181,12 @@ export function DashboardClient({
 
         <div className={styles.patrimonyCard}>
           <div className={styles.label}>Patrimônio Total</div>
-          <div className={styles.bigValue}>{formatMoney(kpis.currentTotalBalance)}</div>
+          <div className={styles.bigValue}>{formatMoney(kpis?.currentTotalBalance || 0)}</div>
           <div className={styles.comparisonBox}>
             <p>Em relação ao mês passado:</p>
-            <div className={`${styles.diffValue} ${kpis.diff >= 0 ? styles.profit : styles.loss}`}>
-              <span>{kpis.diff >= 0 ? "▲" : "▼"}</span>
-              <span>{kpis.diff >= 0 ? "+" : ""} {formatMoney(kpis.diff)}</span>
+            <div className={`${styles.diffValue} ${kpis?.diff >= 0 ? styles.profit : styles.loss}`}>
+              <span>{kpis?.diff >= 0 ? "▲" : "▼"}</span>
+              <span>{kpis?.diff >= 0 ? "+" : ""} {formatMoney(kpis?.diff || 0)}</span>
             </div>
           </div>
         </div>
@@ -180,7 +194,7 @@ export function DashboardClient({
 
       <RecurringAlert
         key={`${month}-${year}`}
-        pendingExpenses={pendingRecurring}
+        pendingExpenses={pendingRecurring || []}
         currentMonth={month}
         currentYear={year}
       />
@@ -190,34 +204,34 @@ export function DashboardClient({
         <div className={styles.summaryCard}>
           <span>Entradas (Mês)</span>
           <div className={`${styles.value} ${styles.green}`}>
-            {formatMoney(kpis.totalIncome)}
+            {formatMoney(kpis?.totalIncome || 0)}
           </div>
         </div>
 
         <div className={styles.summaryCard}>
           <span>Meus Gastos</span>
           <div className={`${styles.value} ${styles.red}`}>
-            {formatMoney(kpis.totalExpense)}
+            {formatMoney(kpis?.totalExpense || 0)}
           </div>
           <div style={{ fontSize: "0.85rem", color: "#888", marginTop: "4px" }}>
-            Saída Total: {formatMoney(kpis.totalOutflow)}
+            Saída Total: {formatMoney(kpis?.totalOutflow || 0)}
           </div>
         </div>
 
         <div className={styles.summaryCard}>
           <span>A Receber (Total)</span>
           <div className={styles.value} style={{ color: "#d97706" }}>
-            {formatMoney(kpis.receivablesTotal)}
+            {formatMoney(kpis?.receivablesTotal || 0)}
           </div>
           <div style={{ fontSize: "0.85rem", color: "#888", marginTop: "4px" }}>
-            Do mês: {formatMoney(kpis.receivablesMonth)}
+            Do mês: {formatMoney(kpis?.receivablesMonth || 0)}
           </div>
         </div>
 
         <div className={styles.summaryCard}>
           <span>Fluxo de Caixa</span>
-          <div className={`${styles.value} ${kpis.monthlyBalance >= 0 ? styles.blue : styles.red}`}>
-            {formatMoney(kpis.monthlyBalance)}
+          <div className={`${styles.value} ${kpis?.monthlyBalance >= 0 ? styles.blue : styles.red}`}>
+            {formatMoney(kpis?.monthlyBalance || 0)}
           </div>
         </div>
         
@@ -313,7 +327,7 @@ export function DashboardClient({
         {/* GASTOS DO MÊS COM SANFONA LIMPA */}
         <div className={styles.card}>
           <h3 className={styles.cardTitle}>Gastos do Mês</h3>
-          {categoryStats.length === 0 ? (
+          {safeCats.length === 0 ? (
             <p className="text-gray-400">Nenhuma despesa neste mês.</p>
           ) : (
             <div className={styles.categoryList}>
