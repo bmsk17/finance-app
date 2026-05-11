@@ -1,7 +1,7 @@
 // ARQUIVO: src/app/import/ImportClient.tsx
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   analyzeNubankCsvAction,
   saveImportedTransactionsAction,
@@ -10,15 +10,17 @@ import styles from "./page.module.scss";
 import { useRouter } from "next/navigation";
 
 export function ImportClient({
-  categories = [], // Blindado
-  accounts = [],   // Blindado
-  recentTransactions = [], // Blindado
+  categories = [], 
+  accounts = [],   
+  recentTransactions = [], 
 }: any) {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
-  const [selectedAccount, setSelectedAccount] = useState(accounts[0]?.id || "");
+  // Iniciamos vazio e atualizamos via useEffect para garantir sincronia com os dados do servidor
+  const [selectedAccount, setSelectedAccount] = useState("");
+
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -28,6 +30,13 @@ export function ImportClient({
   const [searchTerm, setSearchTerm] = useState("");
 
   const router = useRouter();
+
+  // Efeito para definir a conta padrão assim que a lista blindada chegar
+  useEffect(() => {
+    if (accounts.length > 0 && !selectedAccount) {
+      setSelectedAccount(accounts[0].id);
+    }
+  }, [accounts, selectedAccount]);
 
   const usedCorrelatedIds = useMemo(() => {
     return new Set(
@@ -43,7 +52,6 @@ export function ImportClient({
       const data = await analyzeNubankCsvAction(formData);
       const dataWithIds = (data || []).map((t: any) => ({
         ...t,
-        // Se o navegador bloquear o crypto (por estar no IP local), ele usa o Math.random como plano B
         tempId: (typeof crypto !== 'undefined' && crypto.randomUUID) 
           ? crypto.randomUUID() 
           : Math.random().toString(36).substring(2, 15) + Date.now().toString(36),
@@ -69,7 +77,6 @@ export function ImportClient({
 
   function handleCorrelate(tempId: string, existingTransactionId: string) {
     if (!existingTransactionId) return setRelatingId(null);
-
     setTransactions((prev) =>
       prev.map((t) =>
         t.tempId === tempId
@@ -106,16 +113,14 @@ export function ImportClient({
   async function handleSaveToDatabase() {
     setIsSaving(true);
     const readyTransactions = transactions.filter((t) => t.status === "READY");
-
     try {
-      const relatorio = await saveImportedTransactionsAction(readyTransactions, selectedAccount, selectedMonth);      
+      const relatorio = await saveImportedTransactionsAction(readyTransactions, selectedAccount, selectedMonth);
       const mensagem = 
         `✅ Fatura importada com sucesso!\n\n` +
-        `📊 Resumo do que foi salvo:\n` +
+        `📊 Resumo do que foi salvo:\n` + 
         `🔗 Mescladas com o banco: ${relatorio.correlatedCount}\n` +
         `🛒 Novas compras (simples): ${relatorio.newSimpleCount}\n` +
         `💳 Novas compras parceladas: ${relatorio.newInstallmentsCount} série(s) gerada(s)`;
-
       alert(mensagem);
       router.push("/");
     } catch (error) {
@@ -130,14 +135,13 @@ export function ImportClient({
   const needsCat = transactions.filter((t) => t.status === "NEEDS_CATEGORY");
   const duplicates = transactions.filter((t) => t.status === "DUPLICATE");
   const ignored = transactions.filter((t) => t.status === "IGNORED");
-
   const totalToProcess = ready.length + needsCat.length;
   const progressPercentage =
     totalToProcess === 0
       ? 0
       : Math.round((ready.length / totalToProcess) * 100);
-  const isFinished = needsCat.length === 0 && totalToProcess > 0;
   
+  const isFinished = needsCat.length === 0 && totalToProcess > 0;
   const progressStatusClass = isFinished ? styles.finished : styles.pending;
 
   const formatMoney = (val: number) =>
@@ -187,7 +191,6 @@ export function ImportClient({
 
       {transactions.length > 0 && (
         <div className={styles.listsContainer}>
-          {/* BARRA DE PROGRESSO */}
           {totalToProcess > 0 && (
             <div className={styles.progressCard}>
               <div className={styles.progressHeader}>
@@ -205,18 +208,15 @@ export function ImportClient({
             </div>
           )}
 
-          {/* LISTA 1: AÇÃO NECESSÁRIA */}
           {needsCat.length > 0 && (
             <div className={`${styles.listSection} ${styles.needsCategory}`}>
-              <h3>⚠️ Ação Necessária ({needsCat.length})</h3>
-
+              <h3>⚠️ Acção Necessária ({needsCat.length})</h3>
               {needsCat.map((t) => (
                 <div key={t.tempId} className={styles.transactionItem}>
                   <div className={styles.info}>
                     <span className={styles.title}>{t.description}</span>
                     <span className={styles.details}>
                       {t.originalDate}{" "}
-                      
                       {t.installment ? (
                         t.installment.current === 1 ? (
                           <span className={styles.badgeNew}>(Nova Compra Parcelada {t.installment.current}/{t.installment.total})</span>
@@ -255,7 +255,6 @@ export function ImportClient({
                             const filtered = recentTransactions.filter(
                               (rt: any) => {
                                 if (usedCorrelatedIds.has(rt.id)) return false;
-
                                 const d = new Date(rt.date);
                                 const rtYearMonth = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
                                 
@@ -270,26 +269,17 @@ export function ImportClient({
                                 const isSpecial = !!rt.installmentId || cat?.isThirdParty === true || cat?.name === "Assinaturas";
 
                                 if (!isSpecial) return false;
-
-                                if (
-                                  searchTerm &&
-                                  !(rt.description || "")
-                                    .toLowerCase()
-                                    .includes(searchTerm.toLowerCase())
-                                )
-                                  return false;
+                                if (searchTerm && !(rt.description || "").toLowerCase().includes(searchTerm.toLowerCase())) return false;
 
                                 return true;
                               },
                             );
-
                             if (filtered.length === 0)
                               return (
                                 <div className={styles.emptySearch}>
                                   Nenhuma conta encontrada neste ciclo de fatura.
                                 </div>
                               );
-
                             return filtered.map((rt: any) => (
                               <div
                                 key={rt.id}
@@ -328,7 +318,6 @@ export function ImportClient({
             </div>
           )}
 
-          {/* LISTA 2: PRONTAS */}
           {ready.length > 0 && (
             <div className={`${styles.listSection} ${styles.ready}`}>
               <h3>✅ Prontas para Importar ({ready.length})</h3>
@@ -358,7 +347,6 @@ export function ImportClient({
             </div>
           )}
 
-          {/* LISTA 3: DUPLICADAS/IGNORADAS */}
           {(duplicates.length > 0 || ignored.length > 0) && (
             <div className={`${styles.listSection} ${styles.ignored}`}>
               <h3>🗑️ Ignoradas Automaticamente ({duplicates.length + ignored.length})</h3>

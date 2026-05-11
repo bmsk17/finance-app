@@ -129,14 +129,17 @@ export async function analyzeNubankCsvAction(formData: FormData) {
   }
 }
 
+// ARQUIVO: src/app/actions/import.ts
+
 export async function saveImportedTransactionsAction(
   transactions: any[],
   accountId: string,
   selectedMonth: string
 ) {
-  const userId = await getUserId(); // BLINDAGEM
+  // 1. Recupera o ID do utilizador logado (A nossa blindagem central)
+  const userId = await getUserId(); 
 
-  console.log(`🔍 [SAVE] Iniciando salvamento. Transações: ${transactions.length}, AccountID: ${accountId}, Mês selecionado: ${selectedMonth}`);
+  console.log(`🔍 [SAVE] Iniciando salvamento para o Usuário: ${userId}`);
   
   try {
     let correlatedCount = 0;
@@ -144,89 +147,95 @@ export async function saveImportedTransactionsAction(
     let newSimpleCount = 0;
 
     if (!selectedMonth) {
-      console.warn("⚠️ [SAVE] ALERTA: selectedMonth chegou VAZIO ou INDEFINIDO!");
+      console.warn("⚠️ [SAVE] ALERTA: selectedMonth chegou VAZIO!");
     }
     
     const [selYear, selMonth] = (selectedMonth || "2026-03").split('-').map(Number);
 
     for (const t of transactions) {
-      if (t.correlatedId) {
-        // Usa updateMany para garantir a segurança da edição
-        await prisma.transaction.updateMany({
-          where: { id: t.correlatedId, userId }, // BLINDADO
-          data: { accountId: accountId }
-        });
-        correlatedCount++;
-        continue;
-      }
+      try {
+        // CASO 1: Transação já existe, apenas atualizamos a conta (com verificação de dono)
+        if (t.correlatedId) {
+          await prisma.transaction.updateMany({
+            where: { id: t.correlatedId, userId }, // Garante que só altera o que é do utilizador
+            data: { accountId: accountId }
+          });
+          correlatedCount++;
+          continue;
+        }
 
-      const originalParts = t.originalDate.split('-');
-      const originalDay = originalParts.length === 3 ? Number(originalParts[2]) : new Date().getDate();
+        const originalParts = t.originalDate.split('-');
+        const originalDay = originalParts.length === 3 ? Number(originalParts[2]) : new Date().getDate();
+        const baseDate = new Date(selYear, selMonth - 1, originalDay);
 
-      const baseDate = new Date(selYear, selMonth - 1, originalDay);
+        // CASO 2: Nova compra parcelada
+        if (t.installment && t.installment.isInitial && t.installment.total > 1) {
+          const { current, total } = t.installment;
+          const installmentGroupId = crypto.randomUUID();
+          
+          for (let i = current; i <= total; i++) {
+            const installmentDate = new Date(baseDate);
+            installmentDate.setMonth(baseDate.getMonth() + (i - current));
 
-      if (t.installment && t.installment.isInitial && t.installment.total > 1) {
-        const { current, total } = t.installment;
-        const installmentGroupId = crypto.randomUUID();
-        
-        for (let i = current; i <= total; i++) {
-          const installmentDate = new Date(baseDate);
-          installmentDate.setMonth(baseDate.getMonth() + (i - current));
-
+            await prisma.transaction.create({
+              data: {
+                description: `${t.description} (${i}/${total})`,
+                amount: t.amount,
+                date: installmentDate,
+                categoryId: t.suggestedCategoryId,
+                accountId: accountId,
+                type: 'expense', 
+                installmentId: installmentGroupId,
+                userId // <--- VITAL: Carimba o ID do utilizador
+              }
+            });
+          }
+          newInstallmentsCount++;
+        } 
+        // CASO 3: Nova transação simples
+        else {
           await prisma.transaction.create({
             data: {
-              description: `${t.description} (${i}/${total})`,
+              description: t.description,
               amount: t.amount,
-              date: installmentDate,
+              date: baseDate,
               categoryId: t.suggestedCategoryId,
               accountId: accountId,
-              type: 'expense', 
-              installmentId: installmentGroupId,
-              userId // <-- BLINDADO
+              type: t.amount < 0 ? 'expense' : 'income', 
+              installmentId: t.installmentId || null,
+              userId // <--- VITAL: Carimba o ID do utilizador
             }
           });
+          newSimpleCount++;
         }
-        newInstallmentsCount++;
-      } 
-      else {
-        await prisma.transaction.create({
-          data: {
-            description: t.description,
-            amount: t.amount,
-            date: baseDate,
-            categoryId: t.suggestedCategoryId,
-            accountId: accountId,
-            type: t.amount < 0 ? 'expense' : 'income', 
-            installmentId: t.installmentId || null,
-            userId // <-- BLINDADO
-          }
-        });
-        newSimpleCount++;
-      }
 
-      if (t.learned && t.suggestedCategoryId) {
-        // Procura a regra apenas nas regras deste usuário
-        const existingRule = await prisma.importRule.findFirst({ 
-          where: { pattern: t.description, userId } 
-        });
-        
-        if (!existingRule) {
-          await prisma.importRule.create({
-            data: { 
-              pattern: t.description, 
-              categoryId: t.suggestedCategoryId,
-              userId // <-- BLINDADO
-            }
+        // SALVAMENTO DE REGRAS DE APRENDIZADO (Privadas por utilizador)
+        if (t.learned && t.suggestedCategoryId) {
+          const existingRule = await prisma.importRule.findFirst({ 
+            where: { pattern: t.description, userId } 
           });
+          
+          if (!existingRule) {
+            await prisma.importRule.create({
+              data: { 
+                pattern: t.description, 
+                categoryId: t.suggestedCategoryId,
+                userId // Cada utilizador tem as suas próprias regras
+              }
+            });
+          }
         }
+      } catch (itemError) {
+        console.error(`❌ [SAVE] Erro ao processar item específico: ${t.description}`, itemError);
+        // Não trava a importação inteira se apenas um item falhar
       }
     }
 
-    console.log(`✅ [SAVE] Salvo com sucesso! Correlacionadas: ${correlatedCount}, Parcelas: ${newInstallmentsCount}, Simples: ${newSimpleCount}`);
+    console.log(`✅ [SAVE] Concluído! Correlacionadas: ${correlatedCount}, Parcelas: ${newInstallmentsCount}, Simples: ${newSimpleCount}`);
     return { correlatedCount, newInstallmentsCount, newSimpleCount };
 
   } catch (error) {
-    console.error("❌ [SAVE] ERRO FATAL AO SALVAR NO BANCO:", error);
-    throw new Error("Erro ao salvar transações.");
+    console.error("❌ [SAVE] ERRO FATAL NO PROCESSO DE SALVAMENTO:", error);
+    throw new Error("Erro ao salvar transações no banco de dados.");
   }
 }

@@ -76,7 +76,6 @@ export default async function RecurringPage() {
 
           <div className={styles.formGrid}>
             <div className={styles.inputGroup}>
-              <label>Tipo</label>
               <CustomSelect
                 name="type"
                 label="Tipo"
@@ -88,7 +87,6 @@ export default async function RecurringPage() {
               />
             </div>
             <div className={styles.inputGroup}>
-              <label>Categoria</label>
               <CustomSelect 
                 name="categoryId" 
                 label="Categoria"
@@ -100,7 +98,6 @@ export default async function RecurringPage() {
               />
             </div>
             <div className={styles.inputGroup}>
-              <label>Conta</label>
               <CustomSelect 
                 name="accountId" 
                 label="Conta"

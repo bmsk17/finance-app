@@ -34,7 +34,9 @@ export function Sidebar({ userName = 'Usuário' }: SidebarProps) {
     { name: 'Despesas Fixas', path: '/recurring', icon: '🔄' },
     { name: 'Simulador', path: '/projections', icon: '🔮' },
     { name: 'Cobranças', path: '/receivables', icon: '👤' },
+    { name: 'Importar Extrato', path: '/import', icon: '📥' },
   ]
+  
 
   const renderLink = (item: any) => {
     const isActive = pathname === item.path
