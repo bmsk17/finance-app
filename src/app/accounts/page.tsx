@@ -1,12 +1,29 @@
+// ARQUIVO: src/app/accounts/page.tsx
 import { prisma } from "@/lib/prisma"
 import Link from "next/link"
 import { AccountGrid } from "./AccountGrid"
 import styles from "../categories/page.module.scss" 
 
+// 1. Importações do motor de Login
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+import { redirect } from "next/navigation"
+
 export default async function AccountsPage() {
+  // 2. VERIFICAÇÃO DE IDENTIDADE: Pegamos o ID do usuário logado
+  const session = await getServerSession(authOptions)
+  
+  if (!session?.user) {
+    redirect("/login")
+  }
+  
+  const userId = (session.user as any).id
+
   const today = new Date(); // Definimos o marco temporal "agora"
 
+  // 3. Busca os dados no servidor (Blindado)
   const data = await prisma.account.findMany({
+    where: { userId }, // A MÁGICA AQUI: O Prisma agora só traz as contas do Bernardo
     orderBy: { name: 'asc' },
     include: {
       transactions: {

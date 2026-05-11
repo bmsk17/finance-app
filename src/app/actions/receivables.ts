@@ -3,32 +3,40 @@
 
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+
+// Função auxiliar para pegar o crachá
+async function getUserId() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) throw new Error("Não autorizado");
+  return (session.user as any).id;
+}
 
 // ==============================================================================
-// 🤖 ROBÔ DE CONCILIAÇÃO: LÓGICA DE FRONTEIRA (OTIMIZADA)
+// 🤖 ROBÔ DE CONCILIAÇÃO: LÓGICA DE FRONTEIRA (OTIMIZADA E BLINDADA)
 // ==============================================================================
 export async function autoReconcileDebts(categoryId: string) {
-  console.log(`\n🤖 [DEBUG] AUTO-CONCILIAÇÃO (FRONTEIRA) ID: ${categoryId}`);
+  const userId = await getUserId();
+  console.log(`\n🤖 [DEBUG] AUTO-CONCILIAÇÃO (FRONTEIRA) ID: ${categoryId} | User: ${userId}`);
 
   // 1. Buscamos os TOTAIS direto no banco (Muito rápido, usa índices)
   
   // A. Total que ENTROU de dinheiro (Income)
   const incomeAgg = await prisma.transaction.aggregate({
     _sum: { amount: true },
-    where: { categoryId, type: 'income' }
+    where: { categoryId, type: 'income', userId } // Blindado
   });
   const totalIncome = Number(incomeAgg._sum.amount?.toString() || "0");
 
   // B. Total que JÁ GASTAMOS pagando contas (Expense + Reimbursed)
   const reimbursedExpenseAgg = await prisma.transaction.aggregate({
     _sum: { amount: true },
-    where: { categoryId, type: 'expense', isReimbursed: true }
+    where: { categoryId, type: 'expense', isReimbursed: true, userId } // Blindado
   });
   const totalReimbursedValue = Math.abs(Number(reimbursedExpenseAgg._sum.amount?.toString() || "0"));
 
   // 2. Calcula a Diferença (Delta)
-  // Delta > 0: Tem dinheiro livre no pote.
-  // Delta < 0: O pote estourou (Estorno necessário).
   let delta = totalIncome - totalReimbursedValue;
 
   console.log(`📊 [STATS] Renda Total: ${totalIncome} | Já Marcado: ${totalReimbursedValue} | Delta: ${delta.toFixed(2)}`);
@@ -39,10 +47,8 @@ export async function autoReconcileDebts(categoryId: string) {
     // === CENÁRIO 1: SOBRA (PAGAR DÍVIDAS VELHAS - FIFO) ===
     console.log(`   💰 Superávit! Buscando contas pendentes...`);
 
-    // Busca APENAS o que falta pagar. O histórico de 10 anos atrás fica quieto no banco.
-    // Ordenação: Data Ascendente (Antigo -> Novo) + Criação Ascendente (Desempate)
     const unpaidExpenses = await prisma.transaction.findMany({
-      where: { categoryId, type: 'expense', isReimbursed: false },
+      where: { categoryId, type: 'expense', isReimbursed: false, userId }, // Blindado
       orderBy: [
         { date: 'asc' },
         { createdAt: 'asc' }
@@ -54,14 +60,13 @@ export async function autoReconcileDebts(categoryId: string) {
       const desc = expense.description || "Sem descrição";
       
       if (delta >= cost - EPSILON) {
-        await prisma.transaction.update({
-          where: { id: expense.id },
+        await prisma.transaction.updateMany({
+          where: { id: expense.id, userId }, // Blindado
           data: { isReimbursed: true }
         });
         console.log(`      ✅ Pagou: ${desc} (R$ ${cost.toFixed(2)})`);
         delta -= cost;
       } else {
-        // O dinheiro acabou no meio da fila.
         break; 
       }
     }
@@ -72,10 +77,8 @@ export async function autoReconcileDebts(categoryId: string) {
     
     let deficit = Math.abs(delta);
 
-    // Busca APENAS o que foi pago recentemente.
-    // Ordenação: Data Descendente (Novo -> Antigo) + Criação Descendente
     const paidExpenses = await prisma.transaction.findMany({
-      where: { categoryId, type: 'expense', isReimbursed: true },
+      where: { categoryId, type: 'expense', isReimbursed: true, userId }, // Blindado
       orderBy: [
         { date: 'desc' },
         { createdAt: 'desc' }
@@ -86,16 +89,13 @@ export async function autoReconcileDebts(categoryId: string) {
       const cost = Math.abs(Number(expense.amount));
       const desc = expense.description || "Sem descrição";
 
-      // Remove o check para cobrir o rombo
-      await prisma.transaction.update({
-        where: { id: expense.id },
+      await prisma.transaction.updateMany({
+        where: { id: expense.id, userId }, // Blindado
         data: { isReimbursed: false }
       });
       console.log(`      ❌ Estornou: ${desc} (R$ ${cost.toFixed(2)})`);
       
       deficit -= cost;
-
-      // Se já recuperamos o suficiente, paramos de estornar.
       if (deficit <= EPSILON) break;
     }
 
@@ -108,14 +108,15 @@ export async function autoReconcileDebts(categoryId: string) {
 // 🔍 FUNÇÃO DE LEITURA
 // ==============================================================================
 export async function getReceivablesData(month: number, year: number) {
+  const userId = await getUserId();
   console.log(`!!! BUSCANDO DADOS PARA: Mês ${month + 1}/${year} !!!`); 
 
   const currentMonth = month;
   const currentYear = year;
 
   const categories = await prisma.category.findMany({
-    where: { isThirdParty: true },
-    include: { transactions: { orderBy: { date: 'asc' } } }
+    where: { isThirdParty: true, userId }, // Blindado
+    include: { transactions: { orderBy: { date: 'asc' } } } // Como a categoria é do usuário, as transações atreladas também são.
   });
 
   return categories.map(cat => {
@@ -173,6 +174,7 @@ export async function getReceivablesData(month: number, year: number) {
 // ==============================================================================
 
 export async function liquidateDebt(formData: FormData) {
+  const userId = await getUserId();
   const categoryId = formData.get("categoryId") as string
   const accountId = formData.get("accountId") as string
   const amount = Number(formData.get("amount"))
@@ -190,7 +192,8 @@ export async function liquidateDebt(formData: FormData) {
       date: new Date(),
       isPaid: true,
       categoryId,
-      accountId
+      accountId,
+      userId // Blindado
     }
   })
 
@@ -207,6 +210,7 @@ export async function liquidatePartialDebt(formData: {
   amount: number,
   description: string
 }) {
+  const userId = await getUserId();
   console.log(`[ACTION] LiquidatePartialDebt Chamado. Valor: ${formData.amount}`);
   
   await prisma.transaction.create({
@@ -217,12 +221,14 @@ export async function liquidatePartialDebt(formData: {
       date: new Date(),
       categoryId: formData.categoryId,
       accountId: formData.accountId,
-      isPaid: true
+      isPaid: true,
+      userId // Blindado
     }
   })
 
   await autoReconcileDebts(formData.categoryId);
 
+  const { revalidatePath } = require("next/cache")
   revalidatePath('/receivables')
   revalidatePath('/accounts')
   revalidatePath('/')
@@ -235,9 +241,14 @@ export async function liquidateSpecificTransaction(
   description: string,
   date?: string
 ) {
+  const userId = await getUserId();
   console.log(`[ACTION] LiquidateSpecific (Raio) Chamado. Item: ${description}`);
 
-  const originalExpense = await prisma.transaction.findUnique({ where: { id: expenseId } });
+  // Trocado para findFirst para aceitar userId
+  const originalExpense = await prisma.transaction.findFirst({ 
+    where: { id: expenseId, userId } 
+  });
+  
   if (!originalExpense) throw new Error("Transação original não encontrada");
 
   await prisma.transaction.create({
@@ -248,7 +259,8 @@ export async function liquidateSpecificTransaction(
       date: date ? new Date(date) : new Date(),
       categoryId: originalExpense.categoryId,
       accountId: accountId,
-      isPaid: true
+      isPaid: true,
+      userId // Blindado
     }
   });
 
@@ -256,16 +268,17 @@ export async function liquidateSpecificTransaction(
     await autoReconcileDebts(originalExpense.categoryId);
   }
 
+  const { revalidatePath } = require("next/cache")
   revalidatePath('/receivables');
   revalidatePath('/');
 }
 
 export async function deleteReceivablePayment(transactionId: string) {
+  const userId = await getUserId();
   console.log(`[ACTION] Tentando deletar pagamento ID: ${transactionId}`);
   
-  // 1. Antes de apagar, descobrimos de quem é esse dinheiro
-  const transaction = await prisma.transaction.findUnique({
-    where: { id: transactionId }
+  const transaction = await prisma.transaction.findFirst({
+    where: { id: transactionId, userId }
   });
 
   if (!transaction) {
@@ -276,26 +289,27 @@ export async function deleteReceivablePayment(transactionId: string) {
   const categoryId = transaction.categoryId;
   const amount = Number(transaction.amount);
 
-  // 2. Apagamos o pagamento
-  await prisma.transaction.delete({
-    where: { id: transactionId }
+  await prisma.transaction.deleteMany({
+    where: { id: transactionId, userId } // Blindado
   });
   console.log(`❌ Pagamento de R$ ${amount} deletado.`);
 
-  // 3. AVISAMOS O ROBÔ
   if (categoryId) {
     await autoReconcileDebts(categoryId);
   }
 
+  const { revalidatePath } = require("next/cache")
   revalidatePath('/receivables');
   revalidatePath('/');
 }
 
 export async function undoReimbursementAction(expenseId: string) {
-  await prisma.transaction.update({
-    where: { id: expenseId },
+  const userId = await getUserId();
+  await prisma.transaction.updateMany({
+    where: { id: expenseId, userId }, // Blindado
     data: { isReimbursed: false }
   });
+  const { revalidatePath } = require("next/cache")
   revalidatePath('/receivables');
   revalidatePath('/');
 }
@@ -304,57 +318,71 @@ export async function undoReimbursementAction(expenseId: string) {
 // 📊 DASHBOARD METRICS
 // ==============================================================================
 export async function getReceivablesDashboardMetrics(month: number, year: number) {
-  const startDate = new Date(year, month, 1);
-  const endDate = new Date(year, month + 1, 1);
+  // Try Catch para evitar que a tela principal quebre caso a sessão demore um pouco a carregar
+  try {
+    const userId = await getUserId();
+    
+    const startDate = new Date(year, month, 1);
+    const endDate = new Date(year, month + 1, 1);
 
-  const expensesAllTime = await prisma.transaction.aggregate({
-    _sum: { amount: true },
-    where: {
-      type: 'expense',
-      isPaid: true,
-      category: { isThirdParty: true }
-    }
-  });
+    const expensesAllTime = await prisma.transaction.aggregate({
+      _sum: { amount: true },
+      where: {
+        userId, // Blindado
+        type: 'expense',
+        isPaid: true,
+        category: { isThirdParty: true }
+      }
+    });
 
-  const incomeAllTime = await prisma.transaction.aggregate({
-    _sum: { amount: true },
-    where: {
-      type: 'income',
-      isPaid: true,
-      category: { isThirdParty: true }
-    }
-  });
+    const incomeAllTime = await prisma.transaction.aggregate({
+      _sum: { amount: true },
+      where: {
+        userId, // Blindado
+        type: 'income',
+        isPaid: true,
+        category: { isThirdParty: true }
+      }
+    });
 
-  const totalDebt = Math.abs(Number(expensesAllTime._sum.amount || 0));
-  const totalPaid = Number(incomeAllTime._sum.amount || 0);
-  const totalAccumulated = Math.max(0, totalDebt - totalPaid);
+    const totalDebt = Math.abs(Number(expensesAllTime._sum.amount || 0));
+    const totalPaid = Number(incomeAllTime._sum.amount || 0);
+    const totalAccumulated = Math.max(0, totalDebt - totalPaid);
 
-  const expensesMonth = await prisma.transaction.aggregate({
-    _sum: { amount: true },
-    where: {
-      type: 'expense',
-      isPaid: true,
-      category: { isThirdParty: true },
-      date: { gte: startDate, lt: endDate }
-    }
-  });
+    const expensesMonth = await prisma.transaction.aggregate({
+      _sum: { amount: true },
+      where: {
+        userId, // Blindado
+        type: 'expense',
+        isPaid: true,
+        category: { isThirdParty: true },
+        date: { gte: startDate, lt: endDate }
+      }
+    });
 
-  const incomeMonth = await prisma.transaction.aggregate({
-    _sum: { amount: true },
-    where: {
-      type: 'income',
-      isPaid: true,
-      category: { isThirdParty: true },
-      date: { gte: startDate, lt: endDate }
-    }
-  });
+    const incomeMonth = await prisma.transaction.aggregate({
+      _sum: { amount: true },
+      where: {
+        userId, // Blindado
+        type: 'income',
+        isPaid: true,
+        category: { isThirdParty: true },
+        date: { gte: startDate, lt: endDate }
+      }
+    });
 
-  const monthDebtVal = Math.abs(Number(expensesMonth._sum.amount || 0));
-  const monthPaidVal = Number(incomeMonth._sum.amount || 0);
-  const totalMonth = Math.max(0, monthDebtVal - monthPaidVal);
+    const monthDebtVal = Math.abs(Number(expensesMonth._sum.amount || 0));
+    const monthPaidVal = Number(incomeMonth._sum.amount || 0);
+    const totalMonth = Math.max(0, monthDebtVal - monthPaidVal);
 
-  return {
-    totalAccumulated,
-    totalMonth
-  };
+    return {
+      totalAccumulated,
+      totalMonth
+    };
+  } catch (error) {
+    return {
+      totalAccumulated: 0,
+      totalMonth: 0
+    };
+  }
 }

@@ -4,13 +4,24 @@
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
-// 1. IMPORTAÇÃO DO ROBÔ
 import { autoReconcileDebts } from "./receivables"
+
+// --- BLINDAGEM ---
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+
+async function getUserId() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) throw new Error("Não autorizado");
+  return (session.user as any).id;
+}
 
 /**
  * CRIAÇÃO DE TRANSAÇÃO (Única ou Parcelada)
  */
 export async function createTransaction(formData: FormData) {
+  const userId = await getUserId(); // Blindagem
+
   const description = formData.get("description") as string
   const amountStr = formData.get("amount") as string
   const type = formData.get("type") as string
@@ -22,14 +33,7 @@ export async function createTransaction(formData: FormData) {
 
   if (!description || !amountStr || !accountId || !categoryId || !dateStr) return;
 
-  // Tratamento do valor
-  let baseAmount = parseFloat(
-    amountStr
-      .replace("R$", "")
-      .replace(/\s/g, "")
-      .replace(",", ".")
-  );
-  
+  let baseAmount = parseFloat(amountStr.replace("R$", "").replace(/\s/g, "").replace(",", "."));
   baseAmount = Math.abs(baseAmount);
   if (type === "expense") baseAmount = baseAmount * -1;
 
@@ -49,10 +53,7 @@ export async function createTransaction(formData: FormData) {
     }
 
     const installmentLabel = installments > 1 ? `${i + 1}/${installments}` : null
-    const finalDescription = installmentLabel 
-      ? `${description} (${installmentLabel})` 
-      : description
-
+    const finalDescription = installmentLabel ? `${description} (${installmentLabel})` : description
     const currentIsPaid = (installments > 1 && i > 0) ? false : isPaid;
 
     operations.push(
@@ -66,7 +67,8 @@ export async function createTransaction(formData: FormData) {
           categoryId,
           isPaid: currentIsPaid,
           installmentId,
-          installmentLabel
+          installmentLabel,
+          userId // BLINDADO
         }
       })
     );
@@ -74,7 +76,6 @@ export async function createTransaction(formData: FormData) {
 
   await prisma.$transaction(operations);
 
-  // 2. GATILHO DO ROBÔ
   if (categoryId) {
     const category = await prisma.category.findUnique({ where: { id: categoryId } });
     if (category?.isThirdParty) {
@@ -90,6 +91,8 @@ export async function createTransaction(formData: FormData) {
  * ATUALIZAÇÃO DE TRANSAÇÃO
  */
 export async function updateTransaction(formData: FormData) {
+  const userId = await getUserId(); // Blindagem
+
   const id = formData.get("id") as string
   const description = formData.get("description") as string
   const amountStr = formData.get("amount") as string
@@ -101,18 +104,12 @@ export async function updateTransaction(formData: FormData) {
 
   if (!id || !amountStr || !accountId || !categoryId || !dateStr) return;
 
-  let baseAmount = parseFloat(
-    amountStr
-      .replace("R$", "")
-      .replace(/\s/g, "")
-      .replace(",", ".")
-  );
-  
+  let baseAmount = parseFloat(amountStr.replace("R$", "").replace(/\s/g, "").replace(",", "."));
   baseAmount = Math.abs(baseAmount);
   if (type === "expense") baseAmount = baseAmount * -1;
 
-  const originalTransaction = await prisma.transaction.findUnique({
-    where: { id }
+  const originalTransaction = await prisma.transaction.findFirst({
+    where: { id, userId } // BLINDADO
   })
 
   if (!originalTransaction) return;
@@ -127,13 +124,13 @@ export async function updateTransaction(formData: FormData) {
     }
 
     const siblings = await prisma.transaction.findMany({
-      where: { installmentId: originalTransaction.installmentId }
+      where: { installmentId: originalTransaction.installmentId, userId } // BLINDADO
     })
 
     const operations = siblings.map(sibling => {
       if (sibling.id === id) {
-        return prisma.transaction.update({
-          where: { id },
+        return prisma.transaction.updateMany({
+          where: { id, userId }, // BLINDADO
           data: {
             description,
             amount: baseAmount,
@@ -150,8 +147,8 @@ export async function updateTransaction(formData: FormData) {
            ? `${newBaseDescription} (${siblingLabel})` 
            : newBaseDescription;
 
-        return prisma.transaction.update({
-          where: { id: sibling.id },
+        return prisma.transaction.updateMany({
+          where: { id: sibling.id, userId }, // BLINDADO
           data: {
             description: siblingNewDescription,
             amount: baseAmount,
@@ -166,8 +163,8 @@ export async function updateTransaction(formData: FormData) {
     await prisma.$transaction(operations);
 
   } else {
-    await prisma.transaction.update({
-      where: { id },
+    await prisma.transaction.updateMany({
+      where: { id, userId }, // BLINDADO
       data: {
         description,
         amount: baseAmount,
@@ -180,7 +177,6 @@ export async function updateTransaction(formData: FormData) {
     });
   }
 
-  // GATILHO DO ROBÔ NA EDIÇÃO
   if (categoryId) {
      const category = await prisma.category.findUnique({ where: { id: categoryId } });
      if (category?.isThirdParty) {
@@ -196,17 +192,21 @@ export async function updateTransaction(formData: FormData) {
  * ALTERAR STATUS (PAGO/PENDENTE)
  */
 export async function toggleTransactionStatus(formData: FormData) {
+  const userId = await getUserId(); // Blindagem
   const id = formData.get("id") as string
   const isPaid = formData.get("isPaid") === "true"
 
   if (!id) return;
 
-  const transaction = await prisma.transaction.update({
-    where: { id },
+  // Como é updateMany, se o ID não for do usuário, nada acontece (protegido)
+  await prisma.transaction.updateMany({
+    where: { id, userId },
     data: { isPaid: !isPaid }
   });
 
-  if (transaction.categoryId) {
+  const transaction = await prisma.transaction.findFirst({ where: { id, userId }});
+
+  if (transaction && transaction.categoryId) {
     const category = await prisma.category.findUnique({ where: { id: transaction.categoryId } });
     if (category?.isThirdParty) {
         await autoReconcileDebts(transaction.categoryId);
@@ -220,12 +220,12 @@ export async function toggleTransactionStatus(formData: FormData) {
  * EXCLUSÃO (O PONTO CRÍTICO)
  */
 export async function deleteTransaction(formData: FormData) {
+  const userId = await getUserId(); // Blindagem
   const id = formData.get("id") as string
   const deleteMode = formData.get("deleteMode") as string
 
-  // Buscamos a categoria junto para saber se chamamos o robô
-  const transaction = await prisma.transaction.findUnique({ 
-    where: { id },
+  const transaction = await prisma.transaction.findFirst({ 
+    where: { id, userId }, // BLINDADO
     include: { category: true } 
   })
 
@@ -239,13 +239,14 @@ export async function deleteTransaction(formData: FormData) {
           categoryId: transaction.categoryId,
           amount: Number(transaction.amount) * -1, 
           isReimbursed: true, 
+          userId // BLINDADO
         },
         orderBy: { date: 'desc' }
       });
 
       if (originalExpense) {
-        await prisma.transaction.update({
-          where: { id: originalExpense.id },
+        await prisma.transaction.updateMany({
+          where: { id: originalExpense.id, userId }, // BLINDADO
           data: { isReimbursed: false } 
         });
       }
@@ -265,6 +266,7 @@ export async function deleteTransaction(formData: FormData) {
 
     const twinTransaction = await prisma.transaction.findFirst({
       where: {
+        userId, // BLINDADO
         amount: twinAmount,
         date: { gte: dateStart, lte: dateEnd },
         description: {
@@ -275,11 +277,10 @@ export async function deleteTransaction(formData: FormData) {
 
     if (twinTransaction) {
       await prisma.$transaction([
-        prisma.transaction.delete({ where: { id: transaction.id } }),
-        prisma.transaction.delete({ where: { id: twinTransaction.id } })
+        prisma.transaction.deleteMany({ where: { id: transaction.id, userId } }), // BLINDADO
+        prisma.transaction.deleteMany({ where: { id: twinTransaction.id, userId } }) // BLINDADO
       ]);
 
-      // --- CORREÇÃO: CHAMADA DO ROBÔ NA TRANSFERÊNCIA ---
       if (transaction.category?.isThirdParty && transaction.categoryId) {
           await autoReconcileDebts(transaction.categoryId);
       }
@@ -293,15 +294,13 @@ export async function deleteTransaction(formData: FormData) {
   // --- 3. LÓGICA DE EXCLUSÃO SIMPLES OU PARCELADA ---
   if (deleteMode === 'all' && transaction.installmentId) {
     await prisma.transaction.deleteMany({
-      where: { installmentId: transaction.installmentId }
+      where: { installmentId: transaction.installmentId, userId } // BLINDADO
     });
   } else {
-    await prisma.transaction.delete({ where: { id } });
+    await prisma.transaction.deleteMany({ where: { id, userId } }); // BLINDADO
   }
 
-  // 4. GATILHO DO ROBÔ NA EXCLUSÃO PADRÃO
   if (transaction.categoryId && transaction.category?.isThirdParty) {
-     console.log(`🗑️ [DELETE HOME] Apagou transação de ${transaction.category.name}. Chamando Robô...`);
      await autoReconcileDebts(transaction.categoryId);
   }
 
@@ -313,9 +312,9 @@ export async function deleteTransaction(formData: FormData) {
  * BUSCA DE CONTAS PARA CLIENT COMPONENTS
  */
 export async function getAccountsAction() {
-  const accountsRaw = await prisma.account.findMany();
+  const userId = await getUserId(); // Blindagem
+  const accountsRaw = await prisma.account.findMany({ where: { userId } }); // BLINDADO
   
-  // Cria a variável do fim do mês aqui também
   const today = new Date();
   const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
 
@@ -323,14 +322,11 @@ export async function getAccountsAction() {
     const agg = await prisma.transaction.aggregate({
       _sum: { amount: true },
       where: { 
+        userId, // BLINDADO
         accountId: acc.id, 
         isPaid: true, 
-        // AQUI: Trocamos o 'new Date()' pelo 'endOfMonth'
         date: { lte: endOfMonth }, 
-        
-        NOT: {
-          isReimbursed: true
-        }
+        NOT: { isReimbursed: true }
       }
     });
 
@@ -350,7 +346,9 @@ export async function getAccountsAction() {
  * BUSCA DE CATEGORIAS
  */
 export async function getCategoriesAction() {
+  const userId = await getUserId(); // Blindagem
   const categories = await prisma.category.findMany({ 
+    where: { userId }, // BLINDADO
     orderBy: { name: 'asc' } 
   });
 
@@ -366,6 +364,8 @@ export async function getCategoriesAction() {
  * TRANSFERÊNCIA ENTRE CONTAS
  */
 export async function createTransfer(formData: FormData) {
+  const userId = await getUserId(); // Blindagem
+
   const amountStr = formData.get("amount") as string
   const description = formData.get("description") as string
   const dateStr = formData.get("date") as string
@@ -375,9 +375,7 @@ export async function createTransfer(formData: FormData) {
   
   if (!amountStr || !fromAccountId || !toAccountId || !dateStr) return;
 
-  let baseAmount = parseFloat(
-    amountStr.replace("R$", "").replace(/\s/g, "").replace(",", ".")
-  );
+  let baseAmount = parseFloat(amountStr.replace("R$", "").replace(/\s/g, "").replace(",", "."));
   baseAmount = Math.abs(baseAmount);
 
   const [year, month, day] = dateStr.split('-').map(Number);
@@ -393,6 +391,7 @@ export async function createTransfer(formData: FormData) {
         accountId: fromAccountId,
         categoryId: categoryId || null, 
         isPaid: true, 
+        userId // BLINDADO
       }
     }),
     prisma.transaction.create({
@@ -404,6 +403,7 @@ export async function createTransfer(formData: FormData) {
         accountId: toAccountId,
         categoryId: categoryId || null,
         isPaid: true,
+        userId // BLINDADO
       }
     })
   ]);
@@ -417,22 +417,21 @@ export async function createTransfer(formData: FormData) {
  * ALTERAR STATUS EM LOTE (MARCAR/DESMARCAR TODOS)
  */
 export async function toggleAllVisibleTransactions(ids: string[], isPaid: boolean) {
+  const userId = await getUserId(); // Blindagem
+
   if (!ids || ids.length === 0) return;
 
-  // 1. Atualiza todas as transações de uma vez só no banco
   await prisma.transaction.updateMany({
-    where: { id: { in: ids } },
+    where: { id: { in: ids }, userId }, // BLINDADO
     data: { isPaid }
   });
 
-  // 2. Busca quais categorias foram afetadas para avisar o robô
   const affectedTransactions = await prisma.transaction.findMany({
-    where: { id: { in: ids } },
+    where: { id: { in: ids }, userId }, // BLINDADO
     select: { categoryId: true },
     distinct: ['categoryId']
   });
 
-  // 3. Gatilho do Robô
   for (const tx of affectedTransactions) {
     if (tx.categoryId) {
       const category = await prisma.category.findUnique({ where: { id: tx.categoryId } });

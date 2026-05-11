@@ -1,3 +1,4 @@
+// === ARQUIVO: prisma/schema.prisma ===
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,52 +8,85 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// 1. Contas (Ex: Nubank, Carteira, Investimento)
+// ==========================================
+// 1. SISTEMA DE USUÁRIOS (NOVO)
+// ==========================================
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String?  // Pode ser nulo se decidirmos usar Google
+  
+  // Relacionamentos: Tudo que pertence a este usuário
+  accounts          Account[]
+  categories        Category[]
+  transactions      Transaction[]
+  recurringExpenses RecurringExpense[]
+  importRules       ImportRule[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==========================================
+// 2. TABELAS FINANCEIRAS ATUALIZADAS
+// ==========================================
+
 model Account {
   id           String        @id @default(uuid())
   name         String
-  type         String        // ex: "corrente", "investimento", "dinheiro"
-  balance      Decimal       @default(0) // Saldo atual
+  type         String        
+  balance      Decimal       @default(0) 
 
   transactions Transaction[]
   recurringExpenses RecurringExpense[]
   
+  // Vínculo com o Usuário
+  userId       String?
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 }
 
-// 2. Categorias (Ex: Alimentação, Casa, Transporte)
 model Category {
   id           String        @id @default(uuid())
   name         String
-  icon         String?       // Podemos salvar um emoji ou nome de icone aqui
-  color        String?       // Ex: "#FF0000"
-  isThirdParty Boolean @default(false)
+  icon         String?
+  color        String?
+  isThirdParty Boolean       @default(false)
 
   transactions Transaction[]
   recurringExpenses RecurringExpense[]
   importRules  ImportRule[]
 
+  // Vínculo com o Usuário
+  userId       String?
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 }
 
-// 3. Transações (Onde tudo acontece)
 model Transaction {
   id          String   @id @default(uuid())
   description String
   amount      Decimal
   date        DateTime
-  type        String   @default("expense") // 'income' ou 'expense'
-  isPaid           Boolean @default(true)  // true = Realizado, false = Planejado/Opcional
-  installmentId    String?                 // ID único para agrupar as parcelas (ex: uuid da compra)
-  installmentLabel String?                 // Texto bonitinho: "1/10", "2/10"
+  type        String   @default("expense") 
+  isPaid           Boolean   @default(true)  
+  installmentId    String?
+  installmentLabel String?
   isReimbursed     Boolean   @default(false)
 
   category    Category? @relation(fields: [categoryId], references: [id])
   categoryId  String?
   account     Account   @relation(fields: [accountId], references: [id])
   accountId   String
+
+  // Vínculo com o Usuário
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -62,15 +96,17 @@ model RecurringExpense {
   id          String   @id @default(uuid())
   description String
   amount      Decimal
-  type        String   // 'income' ou 'expense'
-  day         Int      // Dia do vencimento (1 a 31)
+  type        String   
+  day         Int      
   
-  // Relacionamentos
   category    Category? @relation(fields: [categoryId], references: [id])
   categoryId  String?
-  
   account     Account   @relation(fields: [accountId], references: [id])
   accountId   String
+
+  // Vínculo com o Usuário
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -78,13 +114,14 @@ model RecurringExpense {
 
 model ImportRule {
   id         String   @id @default(uuid())
-  
-  // O padrão que vamos procurar no CSV (ex: "Uber", "Ifood", "Amazon")
   pattern    String   @unique 
   
-  // A categoria que o sistema deve selecionar automaticamente
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id])
+
+  // Vínculo com o Usuário
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt

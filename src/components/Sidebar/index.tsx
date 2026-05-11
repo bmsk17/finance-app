@@ -1,17 +1,23 @@
+// ARQUIVO: src/components/Sidebar/index.tsx
 'use client'
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useTheme } from 'next-themes' // <--- Importante
+import { useTheme } from 'next-themes' 
 import { useEffect, useState } from 'react'
+import { signOut } from 'next-auth/react' // <-- Importamos a função de Deslogar
 import styles from './styles.module.scss'
 
-export function Sidebar() {
+// Avisamos a Sidebar que ela agora recebe o nome do usuário
+interface SidebarProps {
+  userName?: string;
+}
+
+export function Sidebar({ userName = 'Usuário' }: SidebarProps) {
   const pathname = usePathname()
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
-  // Evita erro de hidratação (renderizar ícone errado no servidor)
   useEffect(() => {
     setMounted(true)
   }, [])
@@ -40,10 +46,11 @@ export function Sidebar() {
     )
   }
 
-  // Função para alternar o tema
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark')
   }
+
+  if (pathname === '/login') return null; 
 
   return (
     <aside className={styles.sidebar}>
@@ -55,8 +62,9 @@ export function Sidebar() {
       <div className={styles.workspaceCard}>
         <div style={{width: 32, height: 32, borderRadius: '50%', background: '#cbd5e1', display:'flex', alignItems:'center', justifyContent:'center'}}>👤</div>
         <div className={styles.info}>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}></span>
-          <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>Bernardo Kanekiyo</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Bem-vindo(a) </span>
+          {/* Aqui está a mágica: O nome agora é dinâmico! */}
+          <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>{userName}</span>
         </div>
       </div>
 
@@ -68,7 +76,6 @@ export function Sidebar() {
       </nav>
 
       <div className={styles.footer}>
-        {/* BOTÃO DE TEMA */}
         {mounted && (
           <button onClick={toggleTheme} className={styles.themeToggle}>
             {theme === 'dark' ? '☀️ Modo Claro' : '🌙 Modo Escuro'}
@@ -78,6 +85,15 @@ export function Sidebar() {
         <Link href="/settings" className={styles.link}>
           <span>⚙️</span> Configurações
         </Link>
+
+        {/* Botão mágico de Logout */}
+        <button 
+          onClick={() => signOut({ callbackUrl: '/login' })} 
+          className={styles.link} 
+          style={{ background: 'transparent', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer', marginTop: '8px' }}
+        >
+          <span>🚪</span> Sair
+        </button>
       </div>
     </aside>
   )

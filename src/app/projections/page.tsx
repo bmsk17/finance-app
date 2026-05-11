@@ -1,10 +1,21 @@
 // ARQUIVO: src/app/projections/page.tsx
-
 import { getProjectionData } from "@/app/actions/projections";
-// Note o import: agora aponta para a pasta
-import { ProjectionSimulator } from "@/components/ProjectionSimulator"; 
+import { ProjectionSimulator } from "@/components/ProjectionSimulator";
+
+// Importações do motor de Login
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
 export default async function ProjectionsPage() {
+  // 1. VERIFICAÇÃO DE IDENTIDADE
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user) {
+    redirect("/login");
+  }
+
+  // 2. Busca os dados (agora blindados na action)
   const data = await getProjectionData();
 
   return (

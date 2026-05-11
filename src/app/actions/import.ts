@@ -3,6 +3,16 @@
 
 import { prisma } from "@/lib/prisma"
 
+// --- BLINDAGEM ---
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+
+async function getUserId() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) throw new Error("Não autorizado");
+  return (session.user as any).id;
+}
+
 export interface AnalyzedTransaction {
   originalDate: string;
   description: string;
@@ -13,6 +23,8 @@ export interface AnalyzedTransaction {
 }
 
 export async function analyzeNubankCsvAction(formData: FormData) {
+  const userId = await getUserId(); // BLINDAGEM
+
   console.log("🔍 [IMPORT] INICIANDO LEITURA DO ARQUIVO CSV...");
   
   try {
@@ -28,8 +40,11 @@ export async function analyzeNubankCsvAction(formData: FormData) {
     const transactions: AnalyzedTransaction[] = [];
 
     console.log("🔍 [IMPORT] Buscando regras e transações antigas no banco...");
-    const rules = await prisma.importRule.findMany();
+    
+    // Busca apenas as REGRAS e TRANSAÇÕES do usuário atual
+    const rules = await prisma.importRule.findMany({ where: { userId } });
     const recentTransactions = await prisma.transaction.findMany({
+      where: { userId },
       orderBy: { date: 'desc' },
       take: 500
     });
@@ -119,6 +134,8 @@ export async function saveImportedTransactionsAction(
   accountId: string,
   selectedMonth: string
 ) {
+  const userId = await getUserId(); // BLINDAGEM
+
   console.log(`🔍 [SAVE] Iniciando salvamento. Transações: ${transactions.length}, AccountID: ${accountId}, Mês selecionado: ${selectedMonth}`);
   
   try {
@@ -126,7 +143,6 @@ export async function saveImportedTransactionsAction(
     let newInstallmentsCount = 0;
     let newSimpleCount = 0;
 
-    // Se selectedMonth vier vazio da tela, essa linha explode. Coloquei um aviso.
     if (!selectedMonth) {
       console.warn("⚠️ [SAVE] ALERTA: selectedMonth chegou VAZIO ou INDEFINIDO!");
     }
@@ -135,8 +151,9 @@ export async function saveImportedTransactionsAction(
 
     for (const t of transactions) {
       if (t.correlatedId) {
-        await prisma.transaction.update({
-          where: { id: t.correlatedId },
+        // Usa updateMany para garantir a segurança da edição
+        await prisma.transaction.updateMany({
+          where: { id: t.correlatedId, userId }, // BLINDADO
           data: { accountId: accountId }
         });
         correlatedCount++;
@@ -164,7 +181,8 @@ export async function saveImportedTransactionsAction(
               categoryId: t.suggestedCategoryId,
               accountId: accountId,
               type: 'expense', 
-              installmentId: installmentGroupId
+              installmentId: installmentGroupId,
+              userId // <-- BLINDADO
             }
           });
         }
@@ -179,17 +197,26 @@ export async function saveImportedTransactionsAction(
             categoryId: t.suggestedCategoryId,
             accountId: accountId,
             type: t.amount < 0 ? 'expense' : 'income', 
-            installmentId: t.installmentId || null 
+            installmentId: t.installmentId || null,
+            userId // <-- BLINDADO
           }
         });
         newSimpleCount++;
       }
 
       if (t.learned && t.suggestedCategoryId) {
-        const existingRule = await prisma.importRule.findFirst({ where: { pattern: t.description } });
+        // Procura a regra apenas nas regras deste usuário
+        const existingRule = await prisma.importRule.findFirst({ 
+          where: { pattern: t.description, userId } 
+        });
+        
         if (!existingRule) {
           await prisma.importRule.create({
-            data: { pattern: t.description, categoryId: t.suggestedCategoryId }
+            data: { 
+              pattern: t.description, 
+              categoryId: t.suggestedCategoryId,
+              userId // <-- BLINDADO
+            }
           });
         }
       }

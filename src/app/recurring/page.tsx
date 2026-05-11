@@ -1,3 +1,4 @@
+// ARQUIVO: src/app/recurring/page.tsx
 import { prisma } from "@/lib/prisma";
 import {
   createRecurringExpense,
@@ -7,15 +8,27 @@ import { CustomSelect } from "@/components/CustomSelect";
 import styles from "./page.module.scss";
 import Link from "next/link";
 
+// --- IMPORTAÇÕES DE BLINDAGEM ---
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { redirect } from "next/navigation";
+
 export default async function RecurringPage() {
-  // Buscar dados
+  // 1. VERIFICAÇÃO DE IDENTIDADE
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    redirect("/login");
+  }
+  const userId = (session.user as any).id;
+
+  // 2. BUSCAS BLINDADAS (Só do usuário logado)
   const recurring = await prisma.recurringExpense.findMany({
+    where: { userId },
     orderBy: { day: "asc" },
     include: { category: true, account: true },
   });
-
-  const categories = await prisma.category.findMany();
-  const accounts = await prisma.account.findMany();
+  const categories = await prisma.category.findMany({ where: { userId } });
+  const accounts = await prisma.account.findMany({ where: { userId } });
 
   return (
     <main className={styles.container}>
@@ -41,13 +54,7 @@ export default async function RecurringPage() {
 
       {/* FORMULÁRIO */}
       <div className={styles.card}>
-        <h2
-          style={{
-            fontSize: "1.1rem",
-            marginBottom: "20px",
-            color: "var(--text-primary)",
-          }}
-        >
+        <h2 style={{ fontSize: "1.1rem", marginBottom: "20px", color: "var(--text-primary)" }}>
           Nova Recorrência
         </h2>
 
@@ -63,14 +70,7 @@ export default async function RecurringPage() {
             </div>
             <div className={styles.inputGroup}>
               <label>Dia Vencimento</label>
-              <input
-                name="day"
-                type="number"
-                min="1"
-                max="31"
-                placeholder="Dia"
-                required
-              />
+              <input name="day" type="number" min="1" max="31" placeholder="Dia" required />
             </div>
           </div>
 
@@ -95,7 +95,7 @@ export default async function RecurringPage() {
                 options={categories.map(cat => ({
                   value: cat.id,
                   label: cat.name,
-                  icon: cat.icon // Passamos o ícone também!
+                  icon: cat.icon
                 }))}
               />
             </div>
@@ -120,13 +120,7 @@ export default async function RecurringPage() {
 
       {/* LISTA */}
       <div className={styles.card}>
-        <h2
-          style={{
-            fontSize: "1.1rem",
-            marginBottom: "20px",
-            color: "var(--text-primary)",
-          }}
-        >
+        <h2 style={{ fontSize: "1.1rem", marginBottom: "20px", color: "var(--text-primary)" }}>
           Cadastrados ({recurring.length})
         </h2>
 
@@ -140,55 +134,33 @@ export default async function RecurringPage() {
               <div className={styles.itemInfo}>
                 <div className={styles.dayBadge}>{item.day}</div>
                 <div>
-                  <div
-                    style={{ fontWeight: "bold", color: "var(--text-primary)" }}
-                  >
+                  <div style={{ fontWeight: "bold", color: "var(--text-primary)" }}>
                     {item.description}
                   </div>
-                  <div
-                    style={{
-                      fontSize: "0.8rem",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
-                    {item.category?.icon} {item.category?.name} •{" "}
-                    {item.account.name}
+                  <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+                    {item.category?.icon} {item.category?.name} • {item.account.name}
                   </div>
                 </div>
               </div>
-              <div
-                style={{ display: "flex", alignItems: "center", gap: "16px" }}
-              >
+              <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                 <span
                   style={{
                     fontWeight: "bold",
                     color: item.type === "expense" ? "#ef4444" : "#10b981",
                   }}
                 >
-                  {item.type === "expense" ? "-" : "+"} R${" "}
-                  {Number(item.amount).toFixed(2)}
+                  {item.type === "expense" ? "-" : "+"} R$ {Number(item.amount).toFixed(2)}
                 </span>
                 
-                {/* --- NOVO: BOTÃO EDITAR --- */}
                  <Link href={`/recurring/edit/${item.id}`} style={{ textDecoration: 'none' }}>
-                   <button 
-                     type="button" 
-                     className={styles.deleteBtn} // Podemos reaproveitar a classe ou criar uma .editBtn
-                     title="Editar"
-                     style={{ fontSize: '1.2rem', marginRight: '8px' }} // Pequeno ajuste inline
-                   >
+                   <button type="button" className={styles.deleteBtn} title="Editar" style={{ fontSize: '1.2rem', marginRight: '8px' }}>
                      ✏️
                    </button>
                  </Link>
-                 {/* -------------------------- */}
 
                 <form action={deleteRecurringExpense}>
                   <input type="hidden" name="id" value={item.id} />
-                  <button
-                    type="submit"
-                    className={styles.deleteBtn}
-                    title="Remover"
-                  >
+                  <button type="submit" className={styles.deleteBtn} title="Remover">
                     🗑️
                   </button>
                 </form>
